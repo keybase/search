@@ -1,4 +1,4 @@
-package secure_index
+package secure_index_builder
 
 import (
 	"crypto/rand"
