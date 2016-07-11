@@ -1,10 +1,11 @@
-package secure_index_builder
+package secureIndexBuilder
 
 import (
 	"bytes"
 	"testing"
 )
 
+// Tests `GenerateSalts`.  Makes sure that salts are properly generated.
 func TestGenerateSalts(t *testing.T) {
 	numKeys := uint(10)
 	lenSalt := uint(8)
