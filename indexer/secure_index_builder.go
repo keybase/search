@@ -22,7 +22,7 @@ func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][
 	sIB := new(SecureIndexBuilder)
 	sIB.keys = make([][]byte, len(salts))
 	for index, salt := range salts {
-		sIB.keys[index] = pbkdf2.Key(masterSecret, salt, 4096, 32, sha256.New)
+		sIB.keys[index] = pbkdf2.Key(masterSecret, salt, 4096, 64, sha256.New)
 	}
 	sIB.hash = h()
 	sIB.numKeys = uint(len(salts))
