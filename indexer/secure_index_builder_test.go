@@ -26,4 +26,20 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 			t.Fatalf("the two instances have different keys")
 		}
 	}
+	trapdoors1 := sIB1.trapdoorFunc("test")
+	trapdoors2 := sIB2.trapdoorFunc("test")
+	if sIB1.numKeys != uint(len(trapdoors1)) || sIB2.numKeys != uint(len(trapdoors2)) {
+		t.Fatalf("incorrect number of trapdoor functions")
+	}
+	for i := uint(0); i < sIB1.numKeys; i++ {
+		if !bytes.Equal(trapdoors1[i], trapdoors2[i]) {
+			t.Fatalf("the two instances have different trapdoor functions")
+		}
+	}
+	trapdoors1dup := sIB1.trapdoorFunc("test")
+	for i := uint(0); i < sIB1.numKeys; i++ {
+		if !bytes.Equal(trapdoors1[i], trapdoors1dup[i]) {
+			t.Fatalf("trapdoor functions not deterministic")
+		}
+	}
 }
