@@ -1,4 +1,4 @@
-package secureIndexBuilder
+package indexer
 
 import (
 	"bytes"
