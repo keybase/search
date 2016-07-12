@@ -9,9 +9,10 @@ import (
 func TestCreateSecureIndexBuilder(t *testing.T) {
 	numKeys := uint(100)
 	lenSalt := uint(8)
+	size := uint(100000)
 	salts := GenerateSalts(numKeys, lenSalt)
-	sIB1 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts)
-	sIB2 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts)
+	sIB1 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
+	sIB2 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	if sIB1.hash == nil || sIB2.hash == nil {
 		t.Fatalf("hash function is not set correctly")
 	}
@@ -20,6 +21,9 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 	}
 	if sIB1.numKeys != sIB2.numKeys {
 		t.Fatalf("the two instances have different numbers of keys")
+	}
+	if sIB1.size != size || sIB2.size != size {
+		t.Fatalf("the sizes of the indexes not set up correctly")
 	}
 	for i := uint(0); i < sIB1.numKeys; i++ {
 		if !bytes.Equal(sIB1.keys[i], sIB2.keys[i]) {

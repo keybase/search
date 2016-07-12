@@ -15,12 +15,13 @@ type SecureIndexBuilder struct {
 	keys         [][]byte              // The keys for the PRFs. Derived from the masterSecret and the salts.
 	hash         func() hash.Hash      // The hash function to be used for Hmac.
 	trapdoorFunc func(string) [][]byte // The trapdoor function for the words
+	size         uint                  // The size of each index, i.e. the number of buckets in the bloom filter.  Smaller size will lead to higher false positive rates.
 }
 
 // CreateSecureIndexBuilder instantiates a `secureIndexBuilder`.  Sets up the
 // hash function, and derives the keys from the master secret and salts by using
 // PBKDF2.  Finally, sets up the trapdoor function for the words.
-func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][]byte) *SecureIndexBuilder {
+func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][]byte, size uint) *SecureIndexBuilder {
 	sIB := new(SecureIndexBuilder)
 	sIB.keys = make([][]byte, len(salts))
 	for index, salt := range salts {
@@ -28,6 +29,7 @@ func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][
 	}
 	sIB.hash = h
 	sIB.numKeys = uint(len(salts))
+	sIB.size = size
 	sIB.trapdoorFunc = func(word string) [][]byte {
 		trapdoors := make([][]byte, sIB.numKeys)
 		for i := uint(0); i < sIB.numKeys; i++ {
