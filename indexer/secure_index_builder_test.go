@@ -5,7 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/golang-collections/go-datastructures/bitarray"
+	"github.com/jxguan/go-datastructures/bitarray"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -71,7 +71,7 @@ func bfContainsWord(bf bitarray.BitArray, sIB *SecureIndexBuilder, docID uint, w
 	return true
 }
 
-// Tests the `BuildBloomFilter` function.  Checks that the bloom filter is
+// Tests the `buildBloomFilter` function.  Checks that the bloom filter is
 // deterministic, is relevant to the document ID, and contains all words in the
 // file.
 func TestBuildBloomFilter(t *testing.T) {
@@ -119,5 +119,23 @@ func TestBuildBloomFilter(t *testing.T) {
 		if !bfContainsWord(bf1, sIB, docID, word) {
 			t.Fatalf("one or more of the words is not present in the bloom filter")
 		}
+	}
+}
+
+// Tests the `blindBloomFilter` function.  Checks that bits are being uiformly
+// randomly blinded.
+func TestBlindBloomFilter(t *testing.T) {
+	numKeys := uint(1)
+	lenSalt := uint(8)
+	size := uint64(1900000)
+	salts := GenerateSalts(numKeys, lenSalt)
+	sIB := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
+	bf := bitarray.NewSparseBitArray()
+	sIB.blindBloomFilter(bf, 1000000)
+	if bf.Capacity() <= uint64(1899968) {
+		t.Fatalf("the blinding process is almost certainly not uniformly random (or you are just very lucky, which happens with a probability of 0.000005%%)")
+	}
+	if len(bf.ToNums()) <= 770000 {
+		t.Fatalf("the blinding process has way too many collisions and is almost certainly not uniformly random")
 	}
 }

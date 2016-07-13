@@ -5,7 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/golang-collections/go-datastructures/bitarray"
+	"github.com/jxguan/go-datastructures/bitarray"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
 	"os"
@@ -67,4 +67,12 @@ func (sIB *SecureIndexBuilder) buildBloomFilter(docID uint, document *os.File) (
 		}
 	}
 	return bf, len(words)
+}
+
+// Blinds the bloom filter by setting randon bits to be on for `numIterations`
+// iterations.
+func (sIB *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int) {
+	for i := 0; i < numIterations; i++ {
+		bf.SetBit(randUint64n(sIB.size))
+	}
 }
