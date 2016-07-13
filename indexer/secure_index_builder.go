@@ -46,14 +46,17 @@ func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][
 }
 
 // Builds the bloom filter for the document and returns the result in a sparse
-// bit array.  The result should not be directly used as the index, as
-// obfuscation need to be added to the bloom filter.
-func (sIB *SecureIndexBuilder) buildBloomFilter(docID uint, document *os.File) bitarray.BitArray {
+// bit array and the number of unique words in the document.  The result should
+// not be directly used as the index, as obfuscation need to be added to the
+// bloom filter.
+func (sIB *SecureIndexBuilder) buildBloomFilter(docID uint, document *os.File) (bitarray.BitArray, int) {
 	scanner := bufio.NewScanner(document)
 	scanner.Split(bufio.ScanWords)
 	bf := bitarray.NewSparseBitArray()
+	words := make(map[string]bool)
 	for scanner.Scan() {
 		word := scanner.Text()
+		words[word] = true
 		trapdoors := sIB.trapdoorFunc(word)
 		for _, trapdoor := range trapdoors {
 			mac := hmac.New(sIB.hash, trapdoor)
@@ -63,5 +66,5 @@ func (sIB *SecureIndexBuilder) buildBloomFilter(docID uint, document *os.File) b
 			bf.SetBit(codeword % sIB.size)
 		}
 	}
-	return bf
+	return bf, len(words)
 }

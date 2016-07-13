@@ -95,22 +95,25 @@ func TestBuildBloomFilter(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf1 := sIB.buildBloomFilter(docID, doc)
+	bf1, count := sIB.buildBloomFilter(docID, doc)
 	// Rewinds the file again
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf2 := sIB.buildBloomFilter(docID, doc)
+	bf2, _ := sIB.buildBloomFilter(docID, doc)
 	// Rewinds the file yet again
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf3 := sIB.buildBloomFilter(docID+1, doc)
+	bf3, _ := sIB.buildBloomFilter(docID+1, doc)
 	if !bf1.Equals(bf2) {
 		t.Fatalf("the two bloom filters are different.  `buildBloomFilter` is likely non-deterministic")
 	}
 	if bf1.Equals(bf3) {
 		t.Fatalf("the same document with different ids produces the same bloom filter")
+	}
+	if count != len(docWords)-1 {
+		t.Fatalf("the number of unique words is not correct")
 	}
 	for _, word := range docWords {
 		if !bfContainsWord(bf1, sIB, docID, word) {
