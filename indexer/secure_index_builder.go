@@ -14,7 +14,7 @@ import (
 // SecureIndexBuilder stores the essential information needed to build the
 // indexes for the documents.
 type SecureIndexBuilder struct {
-	numKeys      uint                  // The number of keys.  This is also the number of PRFs.
+	numKeys      int                   // The number of keys.  This is also the number of PRFs.
 	keys         [][]byte              // The keys for the PRFs. Derived from the masterSecret and the salts.
 	hash         func() hash.Hash      // The hash function to be used for Hmac.
 	trapdoorFunc func(string) [][]byte // The trapdoor function for the words
@@ -31,11 +31,11 @@ func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][
 		sib.keys[index] = pbkdf2.Key(masterSecret, salt, 4096, 32, sha256.New)
 	}
 	sib.hash = h
-	sib.numKeys = uint(len(salts))
+	sib.numKeys = len(salts)
 	sib.size = size
 	sib.trapdoorFunc = func(word string) [][]byte {
 		trapdoors := make([][]byte, sib.numKeys)
-		for i := uint(0); i < sib.numKeys; i++ {
+		for i := 0; i < sib.numKeys; i++ {
 			mac := hmac.New(sib.hash, sib.keys[i])
 			mac.Write([]byte(word))
 			trapdoors[i] = mac.Sum(nil)

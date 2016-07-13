@@ -15,7 +15,7 @@ import (
 // Tests the constructor for `SecureIndexBuilder`.  Makes sure that all the
 // fields are properly generated or calculated.
 func TestCreateSecureIndexBuilder(t *testing.T) {
-	numKeys := uint(100)
+	numKeys := 100
 	lenSalt := uint(8)
 	size := uint64(100000)
 	salts := GenerateSalts(numKeys, lenSalt)
@@ -24,7 +24,7 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 	if sib1.hash == nil || sib2.hash == nil {
 		t.Fatalf("hash function is not set correctly")
 	}
-	if sib1.numKeys != uint(len(sib1.keys)) || sib2.numKeys != uint(len(sib2.keys)) {
+	if sib1.numKeys != len(sib1.keys) || sib2.numKeys != len(sib2.keys) {
 		t.Fatalf("numKeys not set up correctly")
 	}
 	if sib1.numKeys != sib2.numKeys {
@@ -33,23 +33,23 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 	if sib1.size != size || sib2.size != size {
 		t.Fatalf("the sizes of the indexes not set up correctly")
 	}
-	for i := uint(0); i < sib1.numKeys; i++ {
+	for i := 0; i < sib1.numKeys; i++ {
 		if !bytes.Equal(sib1.keys[i], sib2.keys[i]) {
 			t.Fatalf("the two instances have different keys")
 		}
 	}
 	trapdoors1 := sib1.trapdoorFunc("test")
 	trapdoors2 := sib2.trapdoorFunc("test")
-	if sib1.numKeys != uint(len(trapdoors1)) || sib2.numKeys != uint(len(trapdoors2)) {
+	if sib1.numKeys != len(trapdoors1) || sib2.numKeys != len(trapdoors2) {
 		t.Fatalf("incorrect number of trapdoor functions")
 	}
-	for i := uint(0); i < sib1.numKeys; i++ {
+	for i := 0; i < sib1.numKeys; i++ {
 		if !bytes.Equal(trapdoors1[i], trapdoors2[i]) {
 			t.Fatalf("the two instances have different trapdoor functions")
 		}
 	}
 	trapdoors1dup := sib1.trapdoorFunc("test")
-	for i := uint(0); i < sib1.numKeys; i++ {
+	for i := 0; i < sib1.numKeys; i++ {
 		if !bytes.Equal(trapdoors1[i], trapdoors1dup[i]) {
 			t.Fatalf("trapdoor functions not deterministic")
 		}
@@ -75,7 +75,7 @@ func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, docID uint, w
 // deterministic, is relevant to the document ID, and contains all words in the
 // file.
 func TestBuildBloomFilter(t *testing.T) {
-	numKeys := uint(13)
+	numKeys := 13
 	lenSalt := uint(8)
 	size := uint64(1900000)
 	salts := GenerateSalts(numKeys, lenSalt)
@@ -125,7 +125,7 @@ func TestBuildBloomFilter(t *testing.T) {
 // Tests the `blindBloomFilter` function.  Checks that bits are being uiformly
 // randomly blinded.
 func TestBlindBloomFilter(t *testing.T) {
-	numKeys := uint(1)
+	numKeys := 1
 	lenSalt := uint(8)
 	size := uint64(1900000)
 	salts := GenerateSalts(numKeys, lenSalt)
