@@ -19,37 +19,37 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 	lenSalt := uint(8)
 	size := uint64(100000)
 	salts := GenerateSalts(numKeys, lenSalt)
-	sIB1 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
-	sIB2 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
-	if sIB1.hash == nil || sIB2.hash == nil {
+	sib1 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
+	sib2 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
+	if sib1.hash == nil || sib2.hash == nil {
 		t.Fatalf("hash function is not set correctly")
 	}
-	if sIB1.numKeys != uint(len(sIB1.keys)) || sIB2.numKeys != uint(len(sIB2.keys)) {
+	if sib1.numKeys != uint(len(sib1.keys)) || sib2.numKeys != uint(len(sib2.keys)) {
 		t.Fatalf("numKeys not set up correctly")
 	}
-	if sIB1.numKeys != sIB2.numKeys {
+	if sib1.numKeys != sib2.numKeys {
 		t.Fatalf("the two instances have different numbers of keys")
 	}
-	if sIB1.size != size || sIB2.size != size {
+	if sib1.size != size || sib2.size != size {
 		t.Fatalf("the sizes of the indexes not set up correctly")
 	}
-	for i := uint(0); i < sIB1.numKeys; i++ {
-		if !bytes.Equal(sIB1.keys[i], sIB2.keys[i]) {
+	for i := uint(0); i < sib1.numKeys; i++ {
+		if !bytes.Equal(sib1.keys[i], sib2.keys[i]) {
 			t.Fatalf("the two instances have different keys")
 		}
 	}
-	trapdoors1 := sIB1.trapdoorFunc("test")
-	trapdoors2 := sIB2.trapdoorFunc("test")
-	if sIB1.numKeys != uint(len(trapdoors1)) || sIB2.numKeys != uint(len(trapdoors2)) {
+	trapdoors1 := sib1.trapdoorFunc("test")
+	trapdoors2 := sib2.trapdoorFunc("test")
+	if sib1.numKeys != uint(len(trapdoors1)) || sib2.numKeys != uint(len(trapdoors2)) {
 		t.Fatalf("incorrect number of trapdoor functions")
 	}
-	for i := uint(0); i < sIB1.numKeys; i++ {
+	for i := uint(0); i < sib1.numKeys; i++ {
 		if !bytes.Equal(trapdoors1[i], trapdoors2[i]) {
 			t.Fatalf("the two instances have different trapdoor functions")
 		}
 	}
-	trapdoors1dup := sIB1.trapdoorFunc("test")
-	for i := uint(0); i < sIB1.numKeys; i++ {
+	trapdoors1dup := sib1.trapdoorFunc("test")
+	for i := uint(0); i < sib1.numKeys; i++ {
 		if !bytes.Equal(trapdoors1[i], trapdoors1dup[i]) {
 			t.Fatalf("trapdoor functions not deterministic")
 		}
@@ -57,14 +57,14 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 }
 
 // Helper function that checks if a word is contained in the bloom filter.
-func bfContainsWord(bf bitarray.BitArray, sIB *SecureIndexBuilder, docID uint, word string) bool {
-	trapdoors := sIB.trapdoorFunc(word)
+func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, docID uint, word string) bool {
+	trapdoors := sib.trapdoorFunc(word)
 	for _, trapdoor := range trapdoors {
-		mac := hmac.New(sIB.hash, trapdoor)
+		mac := hmac.New(sib.hash, trapdoor)
 		mac.Write([]byte(string(docID)))
 		// Ignore the error as we need to truncate the 256-bit hash into 64 bits
 		codeword, _ := binary.Uvarint(mac.Sum(nil))
-		if bit, _ := bf.GetBit(codeword % sIB.size); !bit {
+		if bit, _ := bf.GetBit(codeword % sib.size); !bit {
 			return false
 		}
 	}
@@ -79,7 +79,7 @@ func TestBuildBloomFilter(t *testing.T) {
 	lenSalt := uint(8)
 	size := uint64(1900000)
 	salts := GenerateSalts(numKeys, lenSalt)
-	sIB := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
+	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	doc, err := ioutil.TempFile("", "bfTest")
 	docContent := "This is a test file. It has a pretty random content."
 	docWords := strings.Split(docContent, " ")
@@ -95,17 +95,17 @@ func TestBuildBloomFilter(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf1, count := sIB.buildBloomFilter(docID, doc)
+	bf1, count := sib.buildBloomFilter(docID, doc)
 	// Rewinds the file again
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf2, _ := sIB.buildBloomFilter(docID, doc)
+	bf2, _ := sib.buildBloomFilter(docID, doc)
 	// Rewinds the file yet again
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf3, _ := sIB.buildBloomFilter(docID+1, doc)
+	bf3, _ := sib.buildBloomFilter(docID+1, doc)
 	if !bf1.Equals(bf2) {
 		t.Fatalf("the two bloom filters are different.  `buildBloomFilter` is likely non-deterministic")
 	}
@@ -116,7 +116,7 @@ func TestBuildBloomFilter(t *testing.T) {
 		t.Fatalf("the number of unique words is not correct")
 	}
 	for _, word := range docWords {
-		if !bfContainsWord(bf1, sIB, docID, word) {
+		if !bfContainsWord(bf1, sib, docID, word) {
 			t.Fatalf("one or more of the words is not present in the bloom filter")
 		}
 	}
@@ -129,9 +129,9 @@ func TestBlindBloomFilter(t *testing.T) {
 	lenSalt := uint(8)
 	size := uint64(1900000)
 	salts := GenerateSalts(numKeys, lenSalt)
-	sIB := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
+	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	bf := bitarray.NewSparseBitArray()
-	sIB.blindBloomFilter(bf, 1000000)
+	sib.blindBloomFilter(bf, 1000000)
 	if bf.Capacity() <= uint64(1899968) {
 		t.Fatalf("the blinding process is almost certainly not uniformly random (or you are just very lucky, which happens with a probability of 0.000005%%)")
 	}
