@@ -140,9 +140,9 @@ func TestBlindBloomFilter(t *testing.T) {
 	}
 }
 
-// Tests the `BuildIndex` function.  Makes sure that all the words can be found
+// Tests the `BuildSecureIndex` function.  Makes sure that all the words can be found
 // in the index and that the index has been randomly blinded.
-func TestBuildIndex(t *testing.T) {
+func TestBuildSecureIndex(t *testing.T) {
 	numKeys := 13
 	lenSalt := uint(8)
 	size := uint64(1900000)
@@ -153,27 +153,27 @@ func TestBuildIndex(t *testing.T) {
 	docWords := strings.Split(docContent, " ")
 	docID := uint(42)
 	if err != nil {
-		t.Errorf("cannot create the temporary test file for `TestBuildIndex`")
+		t.Errorf("cannot create the temporary test file for `TestBuildSecureIndex`")
 	}
 	defer os.Remove(doc.Name()) // clean up
 	if _, err := doc.Write([]byte(docContent)); err != nil {
-		t.Errorf("cannot write to the temporary test file for `TestBuildIndex")
+		t.Errorf("cannot write to the temporary test file for `TestBuildSecureIndex")
 	}
 	// Rewinds the file
 	if _, err := doc.Seek(0, 0); err != nil {
-		t.Errorf("cannot rewind the temporary test file for `TestBuildIndex")
+		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	bf1 := sib.BuildIndex(docID, doc, len(docContent))
+	bf1 := sib.BuildSecureIndex(docID, doc, len(docContent))
 	// Rewinds the file again
 	if _, err := doc.Seek(0, 0); err != nil {
-		t.Errorf("cannot rewind the temporary test file for `TestBuildIndex")
+		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	bf2 := sib.BuildIndex(docID, doc, len(docContent))
+	bf2 := sib.BuildSecureIndex(docID, doc, len(docContent))
 	// Rewinds the file yet again
 	if _, err := doc.Seek(0, 0); err != nil {
-		t.Errorf("cannot rewind the temporary test file for `TestBuildIndex")
+		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	bf3 := sib.BuildIndex(docID+1, doc, len(docContent))
+	bf3 := sib.BuildSecureIndex(docID+1, doc, len(docContent))
 	if bf1.Equals(bf2) {
 		t.Fatalf("the two indexes for the same document are the same.  They are not likely blinded")
 	}
