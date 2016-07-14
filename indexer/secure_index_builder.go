@@ -17,7 +17,7 @@ import (
 type SecureIndexBuilder struct {
 	numKeys      int                   // The number of keys.  This is also the number of PRFs.
 	keys         [][]byte              // The keys for the PRFs. Derived from the masterSecret and the salts.
-	hash         func() hash.Hash      // The hash function to be used for Hmac.
+	hash         func() hash.Hash      // The hash function to be used for HMAC.
 	trapdoorFunc func(string) [][]byte // The trapdoor function for the words
 	size         uint64                // The size of each index, i.e. the number of buckets in the bloom filter.  Smaller size will lead to higher false positive rates.
 }
@@ -83,5 +83,5 @@ func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterati
 func (sib *SecureIndexBuilder) BuildSecureIndex(docID uint, document *os.File, fileLen int) index.SecureIndex {
 	bf, numUniqWords := sib.buildBloomFilter(docID, document)
 	sib.blindBloomFilter(bf, (fileLen-numUniqWords)*sib.numKeys)
-	return index.SecureIndex{bf, docID, sib.size}
+	return index.SecureIndex{bf, docID, sib.size, sib.hash}
 }
