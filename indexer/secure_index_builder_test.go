@@ -139,3 +139,50 @@ func TestBlindBloomFilter(t *testing.T) {
 		t.Fatalf("the blinding process has way too many collisions and is almost certainly not uniformly random")
 	}
 }
+
+// Tests the `BuildIndex` function.  Makes sure that all the words can be found
+// in the index and that the index has been randomly blinded.
+func TestBuildIndex(t *testing.T) {
+	numKeys := 13
+	lenSalt := uint(8)
+	size := uint64(1900000)
+	salts := GenerateSalts(numKeys, lenSalt)
+	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
+	doc, err := ioutil.TempFile("", "indexTest")
+	docContent := "This is a test file. It has a pretty random content."
+	docWords := strings.Split(docContent, " ")
+	docID := uint(42)
+	if err != nil {
+		t.Errorf("cannot create the temporary test file for `TestBuildIndex`")
+	}
+	defer os.Remove(doc.Name()) // clean up
+	if _, err := doc.Write([]byte(docContent)); err != nil {
+		t.Errorf("cannot write to the temporary test file for `TestBuildIndex")
+	}
+	// Rewinds the file
+	if _, err := doc.Seek(0, 0); err != nil {
+		t.Errorf("cannot rewind the temporary test file for `TestBuildIndex")
+	}
+	bf1 := sib.BuildIndex(docID, doc, len(docContent))
+	// Rewinds the file again
+	if _, err := doc.Seek(0, 0); err != nil {
+		t.Errorf("cannot rewind the temporary test file for `TestBuildIndex")
+	}
+	bf2 := sib.BuildIndex(docID, doc, len(docContent))
+	// Rewinds the file yet again
+	if _, err := doc.Seek(0, 0); err != nil {
+		t.Errorf("cannot rewind the temporary test file for `TestBuildIndex")
+	}
+	bf3 := sib.BuildIndex(docID+1, doc, len(docContent))
+	if bf1.Equals(bf2) {
+		t.Fatalf("the two indexes for the same document are the same.  They are not likely blinded")
+	}
+	if bf1.Equals(bf3) {
+		t.Fatalf("the same document with different ids produces the same bloom filter")
+	}
+	for _, word := range docWords {
+		if !bfContainsWord(bf1, sib, docID, word) {
+			t.Fatalf("one or more of the words is not present in the index")
+		}
+	}
+}

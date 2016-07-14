@@ -76,3 +76,11 @@ func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterati
 		bf.SetBit(randUint64n(sib.size))
 	}
 }
+
+// BuildIndex builds the index for `document` with `docID` and an *encrypted*
+// length of `fileLen`.
+func (sib *SecureIndexBuilder) BuildIndex(docID uint, document *os.File, fileLen int) bitarray.BitArray {
+	bf, numUniqWords := sib.buildBloomFilter(docID, document)
+	sib.blindBloomFilter(bf, (fileLen-numUniqWords)*sib.numKeys)
+	return bf
+}
