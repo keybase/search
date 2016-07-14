@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
 	"os"
+	"search/index"
 )
 
 // SecureIndexBuilder stores the essential information needed to build the
@@ -79,8 +80,8 @@ func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterati
 
 // BuildSecureIndex builds the index for `document` with `docID` and an *encrypted*
 // length of `fileLen`.
-func (sib *SecureIndexBuilder) BuildSecureIndex(docID uint, document *os.File, fileLen int) bitarray.BitArray {
+func (sib *SecureIndexBuilder) BuildSecureIndex(docID uint, document *os.File, fileLen int) index.SecureIndex {
 	bf, numUniqWords := sib.buildBloomFilter(docID, document)
 	sib.blindBloomFilter(bf, (fileLen-numUniqWords)*sib.numKeys)
-	return bf
+	return index.SecureIndex{bf, docID, sib.size}
 }

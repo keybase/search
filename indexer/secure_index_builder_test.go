@@ -163,25 +163,31 @@ func TestBuildSecureIndex(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	bf1 := sib.BuildSecureIndex(docID, doc, len(docContent))
+	index1 := sib.BuildSecureIndex(docID, doc, len(docContent))
 	// Rewinds the file again
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	bf2 := sib.BuildSecureIndex(docID, doc, len(docContent))
+	index2 := sib.BuildSecureIndex(docID, doc, len(docContent))
 	// Rewinds the file yet again
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	bf3 := sib.BuildSecureIndex(docID+1, doc, len(docContent))
-	if bf1.Equals(bf2) {
+	index3 := sib.BuildSecureIndex(docID+1, doc, len(docContent))
+	if index1.BloomFilter.Equals(index2.BloomFilter) {
 		t.Fatalf("the two indexes for the same document are the same.  They are not likely blinded")
 	}
-	if bf1.Equals(bf3) {
+	if index1.BloomFilter.Equals(index3.BloomFilter) {
 		t.Fatalf("the same document with different ids produces the same bloom filter")
 	}
+	if index1.DocID != docID || index3.DocID != docID+1 {
+		t.Fatalf("the document ID in the index is not set up correctly")
+	}
+	if index1.Size != size {
+		t.Fatalf("the size in the index is not set up correctly")
+	}
 	for _, word := range docWords {
-		if !bfContainsWord(bf1, sib, docID, word) {
+		if !bfContainsWord(index1.BloomFilter, sib, docID, word) {
 			t.Fatalf("one or more of the words is not present in the index")
 		}
 	}
