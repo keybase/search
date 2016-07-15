@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"crypto/rand"
 	"testing"
 )
 
@@ -34,4 +35,19 @@ func TestRandUint64n(t *testing.T) {
 	checkRandUint64nForNum(uint64(123456789), t)
 	checkRandUint64nForNum(uint64(1), t)
 	checkRandUint64nForNum(^uint64(0), t)
+}
+
+// Tests the `XorBytes` function.  Checks that after xor'ing with the same bytes
+// twice, we can get the oringal bytes.
+func TestXorBytes(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		one := make([]byte, 64)
+		two := make([]byte, 64)
+		rand.Read(one)
+		rand.Read(two)
+		result := XorBytes(one, two, 64)
+		if !bytes.Equal(XorBytes(one, result, 64), two) {
+			t.Fatalf("xor'ing twice does not give back the orignal array")
+		}
+	}
 }
