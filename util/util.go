@@ -7,7 +7,7 @@ import (
 )
 
 // GenerateSalts generates `numKeys` salts with length `lenSalt`.
-func GenerateSalts(numKeys int, lenSalt uint) (salts [][]byte) {
+func GenerateSalts(numKeys, lenSalt int) (salts [][]byte) {
 	if lenSalt < 8 {
 		fmt.Println("Error in generating the salts: lenSalt must be at leat 8")
 	}

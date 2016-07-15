@@ -9,7 +9,7 @@ import (
 // Tests `GenerateSalts`.  Makes sure that salts are properly generated.
 func TestGenerateSalts(t *testing.T) {
 	numKeys := 10
-	lenSalt := uint(8)
+	lenSalt := 8
 	salts := GenerateSalts(numKeys, lenSalt)
 	for i := 0; i < numKeys; i++ {
 		if bytes.Equal(salts[i], make([]byte, lenSalt)) {

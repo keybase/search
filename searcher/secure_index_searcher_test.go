@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"search/indexer"
+	"search/util"
 	"strings"
 	"testing"
 )
@@ -14,9 +15,9 @@ import (
 // yields false (with high probability).
 func TestSearchSecureIndex(t *testing.T) {
 	numKeys := 13
-	lenSalt := uint(8)
+	lenSalt := 8
 	size := uint64(1900000)
-	salts := indexer.GenerateSalts(numKeys, lenSalt)
+	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib := indexer.CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	doc, err := ioutil.TempFile("", "indexTest")
 	docContent := "This is a test file. It has a pretty random content."

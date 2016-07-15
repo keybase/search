@@ -17,7 +17,7 @@ import (
 // fields are properly generated or calculated.
 func TestCreateSecureIndexBuilder(t *testing.T) {
 	numKeys := 100
-	lenSalt := uint(8)
+	lenSalt := 8
 	size := uint64(100000)
 	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib1 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
@@ -77,7 +77,7 @@ func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, docID uint, w
 // file.
 func TestBuildBloomFilter(t *testing.T) {
 	numKeys := 13
-	lenSalt := uint(8)
+	lenSalt := 8
 	size := uint64(1900000)
 	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
@@ -127,7 +127,7 @@ func TestBuildBloomFilter(t *testing.T) {
 // randomly blinded.
 func TestBlindBloomFilter(t *testing.T) {
 	numKeys := 1
-	lenSalt := uint(8)
+	lenSalt := 8
 	size := uint64(1900000)
 	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
@@ -145,7 +145,7 @@ func TestBlindBloomFilter(t *testing.T) {
 // in the index and that the index has been randomly blinded.
 func TestBuildSecureIndex(t *testing.T) {
 	numKeys := 13
-	lenSalt := uint(8)
+	lenSalt := 8
 	size := uint64(1900000)
 	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
