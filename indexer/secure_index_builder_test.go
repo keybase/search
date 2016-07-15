@@ -8,6 +8,7 @@ import (
 	"github.com/jxguan/go-datastructures/bitarray"
 	"io/ioutil"
 	"os"
+	"search/util"
 	"strings"
 	"testing"
 )
@@ -18,7 +19,7 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 	numKeys := 100
 	lenSalt := uint(8)
 	size := uint64(100000)
-	salts := GenerateSalts(numKeys, lenSalt)
+	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib1 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	sib2 := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	if sib1.hash == nil || sib2.hash == nil {
@@ -78,7 +79,7 @@ func TestBuildBloomFilter(t *testing.T) {
 	numKeys := 13
 	lenSalt := uint(8)
 	size := uint64(1900000)
-	salts := GenerateSalts(numKeys, lenSalt)
+	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	doc, err := ioutil.TempFile("", "bfTest")
 	docContent := "This is a test file. It has a pretty random content."
@@ -128,7 +129,7 @@ func TestBlindBloomFilter(t *testing.T) {
 	numKeys := 1
 	lenSalt := uint(8)
 	size := uint64(1900000)
-	salts := GenerateSalts(numKeys, lenSalt)
+	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	bf := bitarray.NewSparseBitArray()
 	sib.blindBloomFilter(bf, 1000000)
@@ -146,7 +147,7 @@ func TestBuildSecureIndex(t *testing.T) {
 	numKeys := 13
 	lenSalt := uint(8)
 	size := uint64(1900000)
-	salts := GenerateSalts(numKeys, lenSalt)
+	salts := util.GenerateSalts(numKeys, lenSalt)
 	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	doc, err := ioutil.TempFile("", "indexTest")
 	docContent := "This is a test file. It has a pretty random content."

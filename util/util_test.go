@@ -1,4 +1,4 @@
-package indexer
+package util
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ func TestGenerateSalts(t *testing.T) {
 // Checks that random numbers generated are within the range of [0, n).
 func checkRandUint64nForNum(n uint64, t *testing.T) {
 	for i := 0; i < 10000; i++ {
-		r := randUint64n(n)
+		r := RandUint64n(n)
 		if r >= n {
 			t.Fatalf("random number %d out of range [0, %d)", r, n)
 		}

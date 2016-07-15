@@ -10,6 +10,7 @@ import (
 	"hash"
 	"os"
 	"search/index"
+	"search/util"
 )
 
 // SecureIndexBuilder stores the essential information needed to build the
@@ -74,7 +75,7 @@ func (sib *SecureIndexBuilder) buildBloomFilter(docID uint, document *os.File) (
 // iterations.
 func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int) {
 	for i := 0; i < numIterations; i++ {
-		bf.SetBit(randUint64n(sib.size))
+		bf.SetBit(util.RandUint64n(sib.size))
 	}
 }
 
