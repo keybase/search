@@ -11,6 +11,7 @@ import (
 // `logger.enabled = false`.  A typical use case would be:
 //
 // func test() {
+//	 logger.Enabled = true
 //   l := CreateLogger("test")
 //	 defer l.LogTime()
 //
@@ -28,8 +29,8 @@ type Logger struct {
 }
 
 // Enabled determines whether logging messages should be printed.  Defaulted to
-// true.
-var Enabled = true
+// false.
+var Enabled = false
 
 // CreateLogger creates a logger for `name`.
 func CreateLogger(name string) *Logger {
