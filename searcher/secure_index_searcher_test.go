@@ -22,7 +22,7 @@ func TestSearchSecureIndex(t *testing.T) {
 	doc, err := ioutil.TempFile("", "indexTest")
 	docContent := "This is a test file. It has a pretty random content."
 	docWords := strings.Split(docContent, " ")
-	docID := uint(42)
+	docID := 42
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestSearchSecureIndex`")
 	}

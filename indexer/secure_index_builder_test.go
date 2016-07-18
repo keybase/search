@@ -58,7 +58,7 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 }
 
 // Helper function that checks if a word is contained in the bloom filter.
-func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, docID uint, word string) bool {
+func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, docID int, word string) bool {
 	trapdoors := sib.trapdoorFunc(word)
 	for _, trapdoor := range trapdoors {
 		mac := hmac.New(sib.hash, trapdoor)
@@ -84,7 +84,7 @@ func TestBuildBloomFilter(t *testing.T) {
 	doc, err := ioutil.TempFile("", "bfTest")
 	docContent := "This is a test file. It has a pretty random content."
 	docWords := strings.Split(docContent, " ")
-	docID := uint(42)
+	docID := 42
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestBuildBloomFilter`")
 	}
@@ -152,7 +152,7 @@ func TestBuildSecureIndex(t *testing.T) {
 	doc, err := ioutil.TempFile("", "indexTest")
 	docContent := "This is a test file. It has a pretty random content."
 	docWords := strings.Split(docContent, " ")
-	docID := uint(42)
+	docID := 42
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestBuildSecureIndex`")
 	}
