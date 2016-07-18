@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"math"
+	"os"
+	"path"
 	"search/util"
 	"strconv"
 )
@@ -14,7 +16,7 @@ type Server struct {
 	lenMS      int      // Length of the master secret in bytes
 	keyHalves  [][]byte // The server-side keyhalves
 	salts      [][]byte // The salts for deriving the keys for the PRFs
-	numFiles   uint     // The number of files currently stored in the server.  This is used to determine the next docID.
+	numFiles   int      // The number of files currently stored in the server.  This is used to determine the next docID.
 }
 
 // CreateServer initializes a server with `numClients` clients with a master
@@ -39,4 +41,15 @@ func CreateServer(numClients, lenMS, lenSalt int, mountPoint string, fpRate floa
 	s.numFiles = 0
 	s.mountPoint = mountPoint
 	return s
+}
+
+// AddFile adds a file with `content` to the server with the document ID equal
+// to the number of files currently in the server and updates the count.
+// Returns the document ID.
+func (s *Server) AddFile(content []byte) int {
+	output, _ := os.Create(path.Join(s.mountPoint, strconv.Itoa(s.numFiles)))
+	output.Write(content)
+	s.numFiles++
+	output.Close()
+	return s.numFiles - 1
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"io/ioutil"
 	"os"
+	"path"
 	"search/util"
 	"strconv"
 	"testing"
@@ -47,7 +48,7 @@ func TestCreateServer(t *testing.T) {
 	if lenSalt != len(s.salts[0]) {
 		t.Fatalf("incorrect length of the salts")
 	}
-	if s.numFiles != uint(0) {
+	if s.numFiles != 0 {
 		t.Fatalf("number of files not initialized to zero")
 	}
 	if dir != s.mountPoint {
@@ -59,5 +60,46 @@ func TestCreateServer(t *testing.T) {
 		if !bytes.Equal(ms, msCpy) {
 			t.Fatalf("different master secrets derived from different clients")
 		}
+	}
+}
+
+// TestAddFile tests the `AddFile` function.  Checks that the content can be
+// correctly retrieved and the document IDs returned are correct.
+func TestAddFile(t *testing.T) {
+	numClients := 5
+	lenMS := 8
+	lenSalt := 8
+	fpRate := 0.000001
+	dir, err := ioutil.TempDir("", "serverTest")
+	if err != nil {
+		t.Errorf("cannot create the temporary test directory for `TestCreateServer`")
+	}
+	defer os.RemoveAll(dir)
+	s := CreateServer(numClients, lenMS, lenSalt, dir, fpRate)
+
+	files := [][]byte{
+		[]byte("This is the very first file."),
+		[]byte("Then comes the second."),
+		[]byte("Now the third.")}
+
+	for i := 0; i < 3; i++ {
+		if s.AddFile(files[i]) != i {
+			t.Fatalf("incorrect number of files returned")
+		}
+	}
+
+	for i := 0; i < 3; i++ {
+		file, err := os.Open(path.Join(dir, strconv.Itoa(i)))
+		if err != nil {
+			t.Fatalf("error in reading the stored files")
+		}
+		content, err := ioutil.ReadAll(file)
+		if err != nil {
+			t.Fatalf("error in reading the stored files")
+		}
+		if !bytes.Equal(content, files[i]) {
+			t.Fatalf("content in the file does not match")
+		}
+		file.Close()
 	}
 }
