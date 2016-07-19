@@ -3,9 +3,11 @@ package server
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"io/ioutil"
 	"math"
 	"os"
 	"path"
+	"search/index"
 	"search/util"
 	"strconv"
 )
@@ -52,4 +54,19 @@ func (s *Server) AddFile(content []byte) int {
 	s.numFiles++
 	output.Close()
 	return s.numFiles - 1
+}
+
+// WriteIndex writes a SecureIndex to the disk of the server.
+func (s *Server) WriteIndex(si index.SecureIndex) {
+	output := si.Marshal()
+	file, _ := os.Create(path.Join(s.mountPoint, strconv.Itoa(si.DocID)+".index"))
+	file.Write(output)
+	file.Close()
+}
+
+// readIndex loads an index from the disk.
+func (s *Server) readIndex(docID int) index.SecureIndex {
+	input, _ := ioutil.ReadFile(path.Join(s.mountPoint, strconv.Itoa(docID)+".index"))
+	si := index.Unmarshal(input)
+	return si
 }
