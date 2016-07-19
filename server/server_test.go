@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"search/index"
 	"search/indexer"
 	"search/util"
 	"strconv"
@@ -20,6 +21,17 @@ func calculateMasterSecret(clientNum int, serverKeyHalf []byte) []byte {
 	return util.XorBytes(h.Sum(nil), serverKeyHalf, len(serverKeyHalf))
 }
 
+// createTestServer creates a test server with the params.  Need to manually
+// remove the directory in the second return value.
+func createTestServer(numClients, lenMS, lenSalt int, fpRate float64) (*Server, string) {
+	dir, err := ioutil.TempDir("", "serverTest")
+	if err != nil {
+		panic("cannot create the temporary test directory")
+	}
+	s := CreateServer(numClients, lenMS, lenSalt, dir, fpRate)
+	return s, dir
+}
+
 // Tests the `CreateServer` function.  Checks that all the fields in the server
 // struct are correctly set up.
 func TestCreateServer(t *testing.T) {
@@ -28,12 +40,9 @@ func TestCreateServer(t *testing.T) {
 	lenSalt := 8
 	fpRate := 0.000001
 	expectedR := 20
-	dir, err := ioutil.TempDir("", "serverTest")
-	if err != nil {
-		t.Errorf("cannot create the temporary test directory for `TestCreateServer`")
-	}
+	s, dir := createTestServer(numClients, lenMS, lenSalt, fpRate)
 	defer os.RemoveAll(dir)
-	s := CreateServer(numClients, lenMS, lenSalt, dir, fpRate)
+
 	if numClients != len(s.keyHalves) {
 		t.Fatalf("incorrect number of server-side key halves")
 	}
@@ -67,16 +76,8 @@ func TestCreateServer(t *testing.T) {
 // TestAddFile tests the `AddFile` function.  Checks that the content can be
 // correctly retrieved and the document IDs returned are correct.
 func TestAddFile(t *testing.T) {
-	numClients := 5
-	lenMS := 8
-	lenSalt := 8
-	fpRate := 0.000001
-	dir, err := ioutil.TempDir("", "serverTest")
-	if err != nil {
-		t.Errorf("cannot create the temporary test directory for `TestAddFile`")
-	}
+	s, dir := createTestServer(5, 8, 8, 0.000001)
 	defer os.RemoveAll(dir)
-	s := CreateServer(numClients, lenMS, lenSalt, dir, fpRate)
 
 	files := [][]byte{
 		[]byte("This is the very first file."),
@@ -105,43 +106,39 @@ func TestAddFile(t *testing.T) {
 	}
 }
 
+// buildIndexForFile builds an index for a file with `content` and `docID`.  The
+// server `s` is needed for retrieving the master secret.
+func buildIndexForFile(s *Server, content string, docID int) index.SecureIndex {
+	size := uint64(1900000)
+	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, size)
+	doc, err := ioutil.TempFile("", "indexTest")
+	if err != nil {
+		panic("cannot create the temporary test file")
+	}
+	defer os.Remove(doc.Name()) // clean up
+	if _, err := doc.Write([]byte(content)); err != nil {
+		panic("cannot write to the temporary test file")
+	}
+	// Rewinds the file
+	if _, err := doc.Seek(0, 0); err != nil {
+		panic("cannot rewind the temporary test file")
+	}
+	si := sib.BuildSecureIndex(docID, doc, len(content))
+	return si
+}
+
 // TestWriteAndReadIndex tests the `WriteIndex` and `readIndex` functions.
 // Checks that the orignal SecureIndex is retrieved after writing to and reading
 // from the disk.
 func TestWriteAndReadIndex(t *testing.T) {
 	// Initialize the server
-	numClients := 5
-	lenMS := 8
-	lenSalt := 8
-	fpRate := 0.000001
-	dir, err := ioutil.TempDir("", "serverTest")
-	if err != nil {
-		t.Errorf("cannot create the temporary test directory for `TestWriteAndReadIndex`")
-	}
+	s, dir := createTestServer(5, 8, 8, 0.000001)
 	defer os.RemoveAll(dir)
-	s := CreateServer(numClients, lenMS, lenSalt, dir, fpRate)
 
-	// Create the index
-	size := uint64(1900000)
-	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, size)
-	doc, err := ioutil.TempFile("", "indexTest")
-	docContent := "This is a test file. It has a pretty random content."
-	docID := 42
-	if err != nil {
-		t.Errorf("cannot create the temporary test file for `TestWriteAndReadIndex`")
-	}
-	defer os.Remove(doc.Name()) // clean up
-	if _, err := doc.Write([]byte(docContent)); err != nil {
-		t.Errorf("cannot write to the temporary test file for `TestWriteAndReadIndex")
-	}
-	// Rewinds the file
-	if _, err := doc.Seek(0, 0); err != nil {
-		t.Errorf("cannot rewind the temporary test file for `TestWriteAndReadIndex`")
-	}
-	si := sib.BuildSecureIndex(docID, doc, len(docContent))
+	si := buildIndexForFile(s, "This is a random test file.", 0)
 
 	s.WriteIndex(si)
-	si2 := s.readIndex(docID)
+	si2 := s.readIndex(0)
 
 	// Check that the indexes are the same
 	if si2.DocID != si.DocID {
