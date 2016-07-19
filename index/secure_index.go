@@ -2,7 +2,6 @@ package index
 
 import (
 	"github.com/jxguan/go-datastructures/bitarray"
-
 	"hash"
 )
 
