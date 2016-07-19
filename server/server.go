@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"search/index"
+	"search/searcher"
 	"search/util"
 	"strconv"
 )
@@ -69,4 +70,16 @@ func (s *Server) readIndex(docID int) index.SecureIndex {
 	input, _ := ioutil.ReadFile(path.Join(s.mountPoint, strconv.Itoa(docID)+".index"))
 	si := index.Unmarshal(input)
 	return si
+}
+
+// SearchWord searchers the server for a word with `trapdoors`.  Returns a list
+// of document ids of files possibly containing the word in increasing order.
+func (s *Server) SearchWord(trapdoors [][]byte) []int {
+	var result []int
+	for i := 0; i < s.numFiles; i++ {
+		if searcher.SearchSecureIndex(s.readIndex(i), trapdoors) {
+			result = append(result, i)
+		}
+	}
+	return result
 }

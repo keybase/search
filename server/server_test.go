@@ -106,11 +106,9 @@ func TestAddFile(t *testing.T) {
 	}
 }
 
-// buildIndexForFile builds an index for a file with `content` and `docID`.  The
-// server `s` is needed for retrieving the master secret.
-func buildIndexForFile(s *Server, content string, docID int) index.SecureIndex {
-	size := uint64(1900000)
-	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, size)
+// buildIndexForFile builds an index for a file with `content` and `docID` using
+// the SecureIndexBuilder `sib`.
+func buildIndexForFile(sib *indexer.SecureIndexBuilder, content string, docID int) index.SecureIndex {
 	doc, err := ioutil.TempFile("", "indexTest")
 	if err != nil {
 		panic("cannot create the temporary test file")
@@ -134,8 +132,9 @@ func TestWriteAndReadIndex(t *testing.T) {
 	// Initialize the server
 	s, dir := createTestServer(5, 8, 8, 0.000001)
 	defer os.RemoveAll(dir)
+	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, uint64(190000))
 
-	si := buildIndexForFile(s, "This is a random test file.", 0)
+	si := buildIndexForFile(sib, "This is a random test file.", 0)
 
 	s.WriteIndex(si)
 	si2 := s.readIndex(0)
@@ -153,4 +152,41 @@ func TestWriteAndReadIndex(t *testing.T) {
 	if !si2.BloomFilter.Equals(si.BloomFilter) {
 		t.Fatalf("BloomFilter does not mtach")
 	}
+}
+
+// TestSearchWord tests the `SearchWord` function.  Checks that the correct set
+// of files are returned when searching for a word on the server.
+func TestSearchWord(t *testing.T) {
+	s, dir := createTestServer(5, 8, 8, 0.000001)
+	defer os.RemoveAll(dir)
+	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, uint64(190000))
+
+	files := []string{
+		"charmander pikachu bulbasaur",
+		"pikachu squirtle",
+		"",
+		"squirtle charmander bulbasaur",
+		"bulbasaur charmander squirtle pikachu"}
+
+	for i := 0; i < len(files); i++ {
+		s.AddFile([]byte(files[i]))
+		si := buildIndexForFile(sib, files[i], i)
+		s.WriteIndex(si)
+	}
+
+	expected := []int{0, 1, 4}
+	actual := s.SearchWord(sib.ComputeTrapdoors("pikachu"))
+
+	t.Log(actual)
+
+	if len(expected) != len(actual) {
+		t.Fatalf("incorrect number of files found")
+	}
+
+	for i := 0; i < len(expected); i++ {
+		if expected[i] != actual[i] {
+			t.Fatalf("incorrect file found")
+		}
+	}
+
 }
