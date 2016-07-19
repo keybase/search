@@ -83,3 +83,17 @@ func (s *Server) SearchWord(trapdoors [][]byte) []int {
 	}
 	return result
 }
+
+// WriteLookupTable writes `content` to the file "lookupTable".
+func (s *Server) WriteLookupTable(content []byte) {
+	file, _ := os.Create(path.Join(s.mountPoint, "lookupTable"))
+	file.Write(content)
+	file.Close()
+}
+
+// ReadLookupTable reads the content in the file "lookupTable" and returns it in
+// a byte slice.
+func (s *Server) ReadLookupTable() []byte {
+	content, _ := ioutil.ReadFile(path.Join(s.mountPoint, "lookupTable"))
+	return content
+}

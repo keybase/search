@@ -187,3 +187,23 @@ func TestSearchWord(t *testing.T) {
 		}
 	}
 }
+
+// TestWriteAndReadLookupTable tests the `WriteLookupTable` and
+// `ReadLookupTable` functions.  Checks that the original content is read,  even
+// after mutiple writes.
+func TestWriteAndReadLookupTable(t *testing.T) {
+	s, dir := createTestServer(5, 8, 8, 0.000001)
+	defer os.RemoveAll(dir)
+
+	content := "This is a test string"
+	s.WriteLookupTable([]byte(content))
+	if !bytes.Equal([]byte(content), s.ReadLookupTable()) {
+		t.Fatalf("incorrect lookup table content")
+	}
+
+	content2 := "This is a different test string"
+	s.WriteLookupTable([]byte(content2))
+	if !bytes.Equal([]byte(content2), s.ReadLookupTable()) {
+		t.Fatalf("incorrect lookup table content after second write")
+	}
+}
