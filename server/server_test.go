@@ -177,8 +177,6 @@ func TestSearchWord(t *testing.T) {
 	expected := []int{0, 1, 4}
 	actual := s.SearchWord(sib.ComputeTrapdoors("pikachu"))
 
-	t.Log(actual)
-
 	if len(expected) != len(actual) {
 		t.Fatalf("incorrect number of files found")
 	}
@@ -188,5 +186,4 @@ func TestSearchWord(t *testing.T) {
 			t.Fatalf("incorrect file found")
 		}
 	}
-
 }
