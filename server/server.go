@@ -160,3 +160,8 @@ func (s *Server) GetKeyHalf(clientNum int) []byte {
 func (s *Server) GetSalts() [][]byte {
 	return s.salts
 }
+
+// GetSize returns the size of the indexes on the server.
+func (s *Server) GetSize() uint64 {
+	return s.size
+}
