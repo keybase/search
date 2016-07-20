@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/gob"
 	"io/ioutil"
 	"math"
 	"os"
@@ -43,7 +44,43 @@ func CreateServer(numClients, lenMS, lenSalt int, mountPoint string, fpRate floa
 	s.salts = util.GenerateSalts(r, lenSalt)
 	s.numFiles = 0
 	s.mountPoint = mountPoint
+	s.writeToFile()
 	return s
+}
+
+// LoadServer initializes a Server by reading the metadata stored at
+// `mountPoint` and restoring the server status.
+func LoadServer(mountPoint string) *Server {
+	input, err := os.Open(path.Join(mountPoint, "serverMD"))
+	if err != nil {
+		panic("Server metadata not found")
+	}
+	dec := gob.NewDecoder(input)
+
+	s := new(Server)
+	dec.Decode(&s.mountPoint)
+	dec.Decode(&s.numFiles)
+	dec.Decode(&s.salts)
+	dec.Decode(&s.keyHalves)
+	dec.Decode(&s.lenMS)
+
+	input.Close()
+
+	return s
+}
+
+// writeToFile serializes the server status and writes the metadata to a file in
+// the server mount point, which can be later loaded by `LoadServer`.
+func (s *Server) writeToFile() {
+	file, _ := os.Create(path.Join(s.mountPoint, "serverMD"))
+	enc := gob.NewEncoder(file)
+	enc.Encode(s.mountPoint)
+	enc.Encode(s.numFiles)
+	enc.Encode(s.salts)
+	enc.Encode(s.keyHalves)
+	enc.Encode(s.lenMS)
+
+	file.Close()
 }
 
 // AddFile adds a file with `content` to the server with the document ID equal
@@ -54,6 +91,7 @@ func (s *Server) AddFile(content []byte) int {
 	output.Write(content)
 	s.numFiles++
 	output.Close()
+	s.writeToFile()
 	return s.numFiles - 1
 }
 

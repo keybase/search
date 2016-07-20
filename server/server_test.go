@@ -207,3 +207,33 @@ func TestWriteAndReadLookupTable(t *testing.T) {
 		t.Fatalf("incorrect lookup table content after second write")
 	}
 }
+
+// TestWriteToFileAndLoadServer tests the `writeToFile` and `LoadServer`
+// functions.  Checks that after writing to file, the original server status can
+// be restored by calling `LoadServer`.
+func TestWriteToFileAndLoadServer(t *testing.T) {
+	s, dir := createTestServer(5, 8, 8, 0.000001)
+	defer os.RemoveAll(dir)
+	s.numFiles = 42
+	s.writeToFile()
+	s2 := LoadServer(dir)
+	if s.mountPoint != s2.mountPoint {
+		t.Fatalf("different mount points")
+	}
+	if s.lenMS != s2.lenMS {
+		t.Fatalf("different length of master secret")
+	}
+	if s.numFiles != s2.numFiles {
+		t.Fatalf("different number of files")
+	}
+	for i := 0; i < len(s.keyHalves); i++ {
+		if !bytes.Equal(s.keyHalves[i], s2.keyHalves[i]) {
+			t.Fatalf("different server key halves")
+		}
+	}
+	for i := 0; i < len(s.salts); i++ {
+		if !bytes.Equal(s.salts[i], s2.salts[i]) {
+			t.Fatalf("different salt values")
+		}
+	}
+}
