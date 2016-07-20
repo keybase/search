@@ -135,3 +135,14 @@ func (s *Server) ReadLookupTable() []byte {
 	content, _ := ioutil.ReadFile(path.Join(s.mountPoint, "lookupTable"))
 	return content
 }
+
+// GetKeyHalf returns the server-side key half for client with `clientNum`.
+// Behavior is undefined if `clientNum` is invalid (out of range).
+func (s *Server) GetKeyHalf(clientNum int) []byte {
+	return s.keyHalves[clientNum]
+}
+
+// GetSalts returns the salts to the client.
+func (s *Server) GetSalts() [][]byte {
+	return s.salts
+}
