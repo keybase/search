@@ -3,6 +3,10 @@ package client
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"io"
+	"io/ioutil"
+	"os"
+	"path"
 	"search/indexer"
 	"search/server"
 	"search/util"
@@ -11,6 +15,7 @@ import (
 
 // Client stores the necessary information for a client.
 type Client struct {
+	mountPoint  string                      // Mount point for the client where all the files are stored
 	server      *server.Server              // The server that this client is connected to
 	indexer     *indexer.SecureIndexBuilder // The indexer for the client
 	lookupTable map[string]string           // A map from docuemnt ids to actual filenames
@@ -18,7 +23,7 @@ type Client struct {
 
 // CreateClient instantiates a client connected to Server `s` with a
 // `clientNum`.
-func CreateClient(s *server.Server, clientNum int) *Client {
+func CreateClient(s *server.Server, clientNum int, mountPoint string) *Client {
 	c := new(Client)
 
 	c.server = s
@@ -33,8 +38,33 @@ func CreateClient(s *server.Server, clientNum int) *Client {
 	// Initializes the lookup table
 	c.lookupTable = make(map[string]string)
 	if tableContent, found := s.ReadLookupTable(); found {
-		json.Unmarshal(tableContent, c.lookupTable)
+		json.Unmarshal(tableContent, &c.lookupTable)
 	}
 
+	c.mountPoint = mountPoint
+
 	return c
+}
+
+// AddFile adds a file to the system.  It first sends the file and index to the
+// server, and then stores the file and its lookup entry locally on the client.
+// It also updates the lookup table stored on the server.
+func (c *Client) AddFile(filename string) {
+	content, _ := ioutil.ReadFile(filename)
+	docID := c.server.AddFile(content)
+	_, file := path.Split(filename)
+	c.lookupTable[strconv.Itoa(docID)] = file
+	table, _ := json.Marshal(c.lookupTable)
+	c.server.WriteLookupTable(table)
+
+	infile, _ := os.Open(filename)
+	defer infile.Close()
+	si := c.indexer.BuildSecureIndex(docID, infile, len(content))
+	c.server.WriteIndex(si)
+
+	outfile, _ := os.Create(path.Join(c.mountPoint, file))
+	defer outfile.Close()
+
+	infile.Seek(0, 0)
+	io.Copy(outfile, infile)
 }
