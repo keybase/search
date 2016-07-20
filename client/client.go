@@ -36,6 +36,7 @@ func CreateClient(s *server.Server, clientNum int, mountPoint string) *Client {
 	c.indexer = indexer.CreateSecureIndexBuilder(sha256.New, ms, s.GetSalts(), s.GetSize())
 
 	// Initializes the lookup table
+	// NOTE: Factor out and add decryption
 	c.lookupTable = make(map[string]string)
 	if tableContent, found := s.ReadLookupTable(); found {
 		json.Unmarshal(tableContent, &c.lookupTable)
@@ -54,6 +55,8 @@ func (c *Client) AddFile(filename string) {
 	docID := c.server.AddFile(content)
 	_, file := path.Split(filename)
 	c.lookupTable[strconv.Itoa(docID)] = file
+	// Write the lookup table to the server
+	// NOTE: Factor out and add encryption
 	table, _ := json.Marshal(c.lookupTable)
 	c.server.WriteLookupTable(table)
 
