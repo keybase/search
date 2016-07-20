@@ -23,12 +23,12 @@ func calculateMasterSecret(clientNum int, serverKeyHalf []byte) []byte {
 
 // createTestServer creates a test server with the params.  Need to manually
 // remove the directory in the second return value.
-func createTestServer(numClients, lenMS, lenSalt int, fpRate float64) (*Server, string) {
+func createTestServer(numClients, lenMS, lenSalt int, fpRate float64, numUniqWords uint64) (*Server, string) {
 	dir, err := ioutil.TempDir("", "serverTest")
 	if err != nil {
 		panic("cannot create the temporary test directory")
 	}
-	s := CreateServer(numClients, lenMS, lenSalt, dir, fpRate)
+	s := CreateServer(numClients, lenMS, lenSalt, dir, fpRate, numUniqWords)
 	return s, dir
 }
 
@@ -39,8 +39,10 @@ func TestCreateServer(t *testing.T) {
 	lenMS := 8
 	lenSalt := 8
 	fpRate := 0.000001
+	numUniqWords := uint64(100000)
 	expectedR := 20
-	s, dir := createTestServer(numClients, lenMS, lenSalt, fpRate)
+	expectedSize := uint64(2885391)
+	s, dir := createTestServer(numClients, lenMS, lenSalt, fpRate, numUniqWords)
 	defer os.RemoveAll(dir)
 
 	if numClients != len(s.keyHalves) {
@@ -54,6 +56,9 @@ func TestCreateServer(t *testing.T) {
 	}
 	if expectedR != len(s.salts) {
 		t.Fatalf("incorrect number of salts generated")
+	}
+	if expectedSize != s.size {
+		t.Fatalf("incorrect size of the server")
 	}
 	if lenSalt != len(s.salts[0]) {
 		t.Fatalf("incorrect length of the salts")
@@ -77,7 +82,7 @@ func TestCreateServer(t *testing.T) {
 // the content can be correctly retrieved and the document IDs returned are
 // correct.
 func TestAddAndGetFile(t *testing.T) {
-	s, dir := createTestServer(5, 8, 8, 0.000001)
+	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
 	defer os.RemoveAll(dir)
 
 	files := [][]byte{
@@ -123,9 +128,9 @@ func buildIndexForFile(sib *indexer.SecureIndexBuilder, content string, docID in
 // from the disk.
 func TestWriteAndReadIndex(t *testing.T) {
 	// Initialize the server
-	s, dir := createTestServer(5, 8, 8, 0.000001)
+	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
 	defer os.RemoveAll(dir)
-	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, uint64(190000))
+	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, s.size)
 
 	si := buildIndexForFile(sib, "This is a random test file.", 0)
 
@@ -150,9 +155,9 @@ func TestWriteAndReadIndex(t *testing.T) {
 // TestSearchWord tests the `SearchWord` function.  Checks that the correct set
 // of files are returned when searching for a word on the server.
 func TestSearchWord(t *testing.T) {
-	s, dir := createTestServer(5, 8, 8, 0.000001)
+	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
 	defer os.RemoveAll(dir)
-	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, uint64(190000))
+	sib := indexer.CreateSecureIndexBuilder(sha256.New, calculateMasterSecret(0, s.keyHalves[0]), s.salts, s.size)
 
 	files := []string{
 		"charmander pikachu bulbasaur",
@@ -186,7 +191,7 @@ func TestSearchWord(t *testing.T) {
 // after mutiple writes.  If the lookup table is not present, makes sure that
 // `ReadLookupTable` returns false.
 func TestWriteAndReadLookupTable(t *testing.T) {
-	s, dir := createTestServer(5, 8, 8, 0.000001)
+	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
 	defer os.RemoveAll(dir)
 
 	if _, found := s.ReadLookupTable(); found {
@@ -212,7 +217,7 @@ func TestWriteAndReadLookupTable(t *testing.T) {
 // functions.  Checks that after writing to file, the original server status can
 // be restored by calling `LoadServer`.
 func TestWriteToFileAndLoadServer(t *testing.T) {
-	s, dir := createTestServer(5, 8, 8, 0.000001)
+	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
 	defer os.RemoveAll(dir)
 	s.numFiles = 42
 	s.writeToFile()

@@ -21,6 +21,7 @@ type Server struct {
 	keyHalves  [][]byte // The server-side keyhalves
 	salts      [][]byte // The salts for deriving the keys for the PRFs
 	numFiles   int      // The number of files currently stored in the server.  This is used to determine the next docID.
+	size       uint64   // The number of slots in the bloom filter index
 }
 
 // CreateServer initializes a server with `numClients` clients with a master
@@ -28,7 +29,7 @@ type Server struct {
 // number of salts is given by `r = -log2(fpRate)`, where `fpRate` is the
 // desired false positive rate of the system.  `mountPoint` determines where the
 // server files will be stored.
-func CreateServer(numClients, lenMS, lenSalt int, mountPoint string, fpRate float64) *Server {
+func CreateServer(numClients, lenMS, lenSalt int, mountPoint string, fpRate float64, numUniqWords uint64) *Server {
 	s := new(Server)
 	masterSecret := make([]byte, lenMS)
 	rand.Read(masterSecret)
@@ -41,6 +42,7 @@ func CreateServer(numClients, lenMS, lenSalt int, mountPoint string, fpRate floa
 		s.keyHalves[i] = util.XorBytes(masterSecret, cksum, lenMS)
 	}
 	r := int(math.Ceil(-math.Log2(fpRate)))
+	s.size = uint64(math.Ceil(float64(numUniqWords) * float64(r) / math.Log(2)))
 	s.salts = util.GenerateSalts(r, lenSalt)
 	s.numFiles = 0
 	s.mountPoint = mountPoint
@@ -63,6 +65,7 @@ func LoadServer(mountPoint string) *Server {
 	dec.Decode(&s.salts)
 	dec.Decode(&s.keyHalves)
 	dec.Decode(&s.lenMS)
+	dec.Decode(&s.size)
 
 	input.Close()
 
@@ -79,6 +82,7 @@ func (s *Server) writeToFile() {
 	enc.Encode(s.salts)
 	enc.Encode(s.keyHalves)
 	enc.Encode(s.lenMS)
+	enc.Encode(s.size)
 
 	file.Close()
 }
