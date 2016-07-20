@@ -137,10 +137,13 @@ func (s *Server) WriteLookupTable(content []byte) {
 }
 
 // ReadLookupTable reads the content in the file "lookupTable" and returns it in
-// a byte slice.
-func (s *Server) ReadLookupTable() []byte {
+// a byte slice.  If not found, returns false as the second return value.
+func (s *Server) ReadLookupTable() ([]byte, bool) {
+	if _, err := os.Stat(path.Join(s.mountPoint, "lookupTable")); os.IsNotExist(err) {
+		return []byte{}, false
+	}
 	content, _ := ioutil.ReadFile(path.Join(s.mountPoint, "lookupTable"))
-	return content
+	return content, true
 }
 
 // GetKeyHalf returns the server-side key half for client with `clientNum`.
