@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"search/index"
 	"search/indexer"
 	"search/util"
@@ -216,23 +217,7 @@ func TestWriteToFileAndLoadServer(t *testing.T) {
 	s.numFiles = 42
 	s.writeToFile()
 	s2 := LoadServer(dir)
-	if s.mountPoint != s2.mountPoint {
-		t.Fatalf("different mount points")
-	}
-	if s.lenMS != s2.lenMS {
-		t.Fatalf("different length of master secret")
-	}
-	if s.numFiles != s2.numFiles {
-		t.Fatalf("different number of files")
-	}
-	for i := 0; i < len(s.keyHalves); i++ {
-		if !bytes.Equal(s.keyHalves[i], s2.keyHalves[i]) {
-			t.Fatalf("different server key halves")
-		}
-	}
-	for i := 0; i < len(s.salts); i++ {
-		if !bytes.Equal(s.salts[i], s2.salts[i]) {
-			t.Fatalf("different salt values")
-		}
+	if !reflect.DeepEqual(s, s2) {
+		t.Fatalf("different server after loading from file")
 	}
 }
