@@ -110,3 +110,34 @@ func TestAddFile(t *testing.T) {
 		t.Fatalf("file not correctly written to local client storage")
 	}
 }
+
+// TestGetFile tests the `getFile` function.  Checks that the correct file
+// content is written to the local disk of the client.
+func TestGetFile(t *testing.T) {
+	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
+	defer os.RemoveAll(dir)
+
+	c, cliDir := createTestClient(s, 0)
+	defer os.RemoveAll(cliDir)
+
+	content := "This is a simple test file"
+	file := createTestFile(content)
+	_, filename := path.Split(file)
+	defer os.Remove(file)
+
+	c.AddFile(file)
+
+	c2, cliDir2 := createTestClient(s, 1)
+	defer os.RemoveAll(cliDir2)
+
+	if _, err := os.Stat(path.Join(cliDir2, filename)); err == nil {
+		t.Fatalf("file already exist before getFile is called")
+	}
+
+	c2.getFile(0)
+
+	contentRead, err := ioutil.ReadFile(path.Join(cliDir2, filename))
+	if err != nil || !bytes.Equal(contentRead, []byte(content)) {
+		t.Fatalf("file content not successfully retrieved after getFile")
+	}
+}

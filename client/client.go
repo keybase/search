@@ -71,3 +71,20 @@ func (c *Client) AddFile(filename string) {
 	infile.Seek(0, 0)
 	io.Copy(outfile, infile)
 }
+
+// getFile fetches the file with `docID`, if that file cannot be found on the
+// local disk.
+func (c *Client) getFile(docID int) {
+	// The docID is invalid
+	if _, found := c.lookupTable[strconv.Itoa(docID)]; !found {
+		return
+	}
+	filename := path.Join(c.mountPoint, c.lookupTable[strconv.Itoa(docID)])
+	// The file exists
+	if _, err := os.Stat(filename); err == nil {
+		return
+	}
+	content := c.server.GetFile(docID)
+	outfile, _ := os.Create(filename)
+	outfile.Write(content)
+}
