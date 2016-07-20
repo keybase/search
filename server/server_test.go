@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"io/ioutil"
 	"os"
-	"path"
 	"search/index"
 	"search/indexer"
 	"search/util"
@@ -73,9 +72,10 @@ func TestCreateServer(t *testing.T) {
 	}
 }
 
-// TestAddFile tests the `AddFile` function.  Checks that the content can be
-// correctly retrieved and the document IDs returned are correct.
-func TestAddFile(t *testing.T) {
+// TestAddAndGetFile tests the `AddFile` and `GetFile` functions.  Checks that
+// the content can be correctly retrieved and the document IDs returned are
+// correct.
+func TestAddAndGetFile(t *testing.T) {
 	s, dir := createTestServer(5, 8, 8, 0.000001)
 	defer os.RemoveAll(dir)
 
@@ -91,18 +91,10 @@ func TestAddFile(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		file, err := os.Open(path.Join(dir, strconv.Itoa(i)))
-		if err != nil {
-			t.Fatalf("error in reading the stored files")
-		}
-		content, err := ioutil.ReadAll(file)
-		if err != nil {
-			t.Fatalf("error in reading the stored files")
-		}
+		content := s.GetFile(i)
 		if !bytes.Equal(content, files[i]) {
 			t.Fatalf("content in the file does not match")
 		}
-		file.Close()
 	}
 }
 

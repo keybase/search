@@ -95,6 +95,13 @@ func (s *Server) AddFile(content []byte) int {
 	return s.numFiles - 1
 }
 
+// GetFile returns the content of the document with `docID`.  Behavior is
+// undefined if the docID is invalid (out of range).
+func (s *Server) GetFile(docID int) []byte {
+	content, _ := ioutil.ReadFile(path.Join(s.mountPoint, strconv.Itoa(docID)))
+	return content
+}
+
 // WriteIndex writes a SecureIndex to the disk of the server.
 func (s *Server) WriteIndex(si index.SecureIndex) {
 	output := si.Marshal()
