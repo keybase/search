@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/gob"
+	"fmt"
 	"io/ioutil"
 	"math"
 	"os"
@@ -164,4 +165,16 @@ func (s *Server) GetSalts() [][]byte {
 // GetSize returns the size of the indexes on the server.
 func (s *Server) GetSize() uint64 {
 	return s.size
+}
+
+// PrintServerInfo prints out the basic information of the server.
+func (s *Server) PrintServerInfo() {
+	fmt.Printf("Server ID: %.3x\n", s.keyHalves[0])
+	fmt.Println("Mount Point:", s.mountPoint)
+	fmt.Println("Size:", s.size)
+	fmt.Println("Number of Clients:", len(s.keyHalves))
+	fmt.Println("Length of Master Secret:", s.lenMS)
+	fmt.Println("Number of PRFs:", len(s.salts))
+	fmt.Println("Number of Files:", s.numFiles)
+	fmt.Println()
 }
