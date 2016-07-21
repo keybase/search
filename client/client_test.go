@@ -54,8 +54,10 @@ func TestCreateClient(t *testing.T) {
 	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
 	defer os.RemoveAll(dir)
 
-	c1 := CreateClient(s, 0, "unused")
-	c2 := CreateClient(s, 1, "unused")
+	c1, cliDir1 := createTestClient(s, 0)
+	c2, cliDir2 := createTestClient(s, 1)
+	defer os.RemoveAll(cliDir1)
+	defer os.RemoveAll(cliDir2)
 
 	if c1.server != c2.server {
 		t.Fatalf("different servers for the clients")
