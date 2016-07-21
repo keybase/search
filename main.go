@@ -104,7 +104,25 @@ func main() {
 			for _, filename := range client.GetFilenames() {
 				fmt.Println(filename)
 			}
-
+		case "search", "s":
+			if client == nil {
+				fmt.Printf("%s: client not running\n", tokens[0])
+				break
+			}
+			if len(tokens) < 2 {
+				fmt.Printf("%s: search keyword missing\n", tokens[0])
+				break
+			}
+			for i := 1; i < len(tokens); i++ {
+				fmt.Printf("Search result for %s:\n", tokens[i])
+				filenames := client.SearchWord(tokens[i])
+				if len(filenames) == 0 {
+					fmt.Printf("\tNo file contains the word \"%s\"\n", tokens[i])
+				}
+				for _, filename := range filenames {
+					fmt.Printf("\t%s\n", filename)
+				}
+			}
 		case "add":
 			if client == nil {
 				fmt.Printf("%s: client not running\n", tokens[0])
