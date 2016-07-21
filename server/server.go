@@ -151,6 +151,11 @@ func (s *Server) ReadLookupTable() ([]byte, bool) {
 	return content, true
 }
 
+// GetNumClients returns the number of clients for this server.
+func (s *Server) GetNumClients() int {
+	return len(s.keyHalves)
+}
+
 // GetKeyHalf returns the server-side key half for client with `clientNum`.
 // Behavior is undefined if `clientNum` is invalid (out of range).
 func (s *Server) GetKeyHalf(clientNum int) []byte {
