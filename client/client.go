@@ -45,6 +45,11 @@ func CreateClient(s *server.Server, clientNum int, mountPoint string) *Client {
 	}
 
 	c.mountPoint = mountPoint
+	if _, err := os.Stat(mountPoint); os.IsNotExist(err) {
+		if os.Mkdir(mountPoint, 0777) != nil {
+			panic("cannot create the client mount point")
+		}
+	}
 
 	return c
 }
