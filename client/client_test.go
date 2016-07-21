@@ -86,10 +86,19 @@ func TestAddFile(t *testing.T) {
 	_, filename := path.Split(file)
 	defer os.Remove(file)
 
-	c.AddFile(file)
+	if !c.AddFile(file) {
+		t.Fatalf("first time adding file fails")
+	}
+
+	if c.AddFile(file) {
+		t.Fatalf("same file added twice")
+	}
 
 	if c.lookupTable["0"] != filename {
 		t.Fatalf("lookup table not set up correctly on the client")
+	}
+	if c.reverseLookup[filename] != "0" {
+		t.Fatalf("reverse lookup table not set up correctly on the client")
 	}
 
 	serverLookupTable := make(map[string]string)

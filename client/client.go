@@ -17,10 +17,11 @@ import (
 
 // Client stores the necessary information for a client.
 type Client struct {
-	mountPoint  string                      // Mount point for the client where all the files are stored
-	server      *server.Server              // The server that this client is connected to
-	indexer     *indexer.SecureIndexBuilder // The indexer for the client
-	lookupTable map[string]string           // A map from docuemnt ids to actual filenames
+	mountPoint    string                      // Mount point for the client where all the files are stored
+	server        *server.Server              // The server that this client is connected to
+	indexer       *indexer.SecureIndexBuilder // The indexer for the client
+	lookupTable   map[string]string           // A map from docuemnt ids to actual filenames
+	reverseLookup map[string]string           // A map from actual filenames to document ids
 }
 
 // CreateClient instantiates a client connected to Server `s` with a
@@ -40,8 +41,12 @@ func CreateClient(s *server.Server, clientNum int, mountPoint string) *Client {
 	// Initializes the lookup table
 	// NOTE: Factor out and add decryption
 	c.lookupTable = make(map[string]string)
+	c.reverseLookup = make(map[string]string)
 	if tableContent, found := s.ReadLookupTable(); found {
 		json.Unmarshal(tableContent, &c.lookupTable)
+		for key, value := range c.lookupTable {
+			c.reverseLookup[value] = key
+		}
 	}
 
 	c.mountPoint = mountPoint
@@ -56,12 +61,17 @@ func CreateClient(s *server.Server, clientNum int, mountPoint string) *Client {
 
 // AddFile adds a file to the system.  It first sends the file and index to the
 // server, and then stores the file and its lookup entry locally on the client.
-// It also updates the lookup table stored on the server.
-func (c *Client) AddFile(filename string) {
+// It also updates the lookup table stored on the server.  Returns true on
+// success, false if the file already exists.
+func (c *Client) AddFile(filename string) bool {
+	_, file := path.Split(filename)
+	if _, found := c.reverseLookup[file]; found {
+		return false
+	}
 	content, _ := ioutil.ReadFile(filename)
 	docID := c.server.AddFile(content)
-	_, file := path.Split(filename)
 	c.lookupTable[strconv.Itoa(docID)] = file
+	c.reverseLookup[file] = strconv.Itoa(docID)
 	// Write the lookup table to the server
 	// NOTE: Factor out and add encryption
 	table, _ := json.Marshal(c.lookupTable)
@@ -77,6 +87,7 @@ func (c *Client) AddFile(filename string) {
 
 	infile.Seek(0, 0)
 	io.Copy(outfile, infile)
+	return true
 }
 
 // getFile fetches the file with `docID`, if that file cannot be found on the
