@@ -20,7 +20,7 @@ var fpRate = flag.Float64("fp_rate", 0.000001, "the desired false positive rate 
 var numUniqWords = flag.Uint64("num_words", uint64(10000), "the expected number of unique words in all the documents")
 var serverMountPoint = flag.String("server_mp", "server_fs", "the mount point for the server where all the server side data is stored")
 
-var defaultClientNum = flag.Int("default_client_num", -1, "the dafault running client (set to -1 to initialize without a client)")
+var defaultClientNum = flag.Int("default_client_num", 0, "the dafault running client (set to -1 to initialize without a client)")
 var clientMountPoint = flag.String("client_mp", "client_fs", "the mount point for the client where the client stores all the data")
 
 func startServer() *server.Server {
@@ -39,6 +39,7 @@ func startServer() *server.Server {
 
 func startClient(server *server.Server, clientNum int) *client.Client {
 	if clientNum == -1 {
+		fmt.Println("No client running")
 		return nil
 	}
 	fmt.Println("Now running client", clientNum)
@@ -85,6 +86,19 @@ func main() {
 			if client == nil {
 				fmt.Printf("%s: client not running\n", tokens[0])
 				break
+			}
+
+		case "add":
+			if client == nil {
+				fmt.Printf("%s: client not running\n", tokens[0])
+				break
+			}
+			if len(tokens) < 2 {
+				fmt.Printf("%s: file name missing\n", tokens[0])
+				break
+			}
+			for i := 1; i < len(tokens); i++ {
+				client.AddFile(tokens[i])
 			}
 
 		case "info":
