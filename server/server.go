@@ -176,5 +176,4 @@ func (s *Server) PrintServerInfo() {
 	fmt.Println("Length of Master Secret:", s.lenMS)
 	fmt.Println("Number of PRFs:", len(s.salts))
 	fmt.Println("Number of Files:", s.numFiles)
-	fmt.Println()
 }
