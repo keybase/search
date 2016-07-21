@@ -6,11 +6,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"search/indexer"
 	"search/server"
 	"search/util"
 	"strconv"
+	"strings"
 )
 
 // Client stores the necessary information for a client.
@@ -87,4 +89,24 @@ func (c *Client) getFile(docID int) {
 	content := c.server.GetFile(docID)
 	outfile, _ := os.Create(filename)
 	outfile.Write(content)
+}
+
+// SearchWord searches for a word in all the documents and returns the names of
+// all the documents containing that word as a string slice.
+func (c *Client) SearchWord(word string) []string {
+	possibleDocs := c.server.SearchWord(c.indexer.ComputeTrapdoors(word))
+	args := make([]string, len(possibleDocs)+2)
+	args[0] = "-lZ"
+	args[1] = word
+	for index, docID := range possibleDocs {
+		c.getFile(docID)
+		args[index+2] = path.Join(c.mountPoint, c.lookupTable[strconv.Itoa(docID)])
+	}
+	output, _ := exec.Command("grep", args...).Output()
+	filenames := strings.Split(string(output), "\x00")
+	filenames = filenames[:len(filenames)-1]
+	for i := range filenames {
+		_, filenames[i] = path.Split(filenames[i])
+	}
+	return filenames
 }
