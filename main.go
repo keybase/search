@@ -46,6 +46,20 @@ func startClient(server *server.Server, clientNum int) *client.Client {
 	return client.CreateClient(server, clientNum, path.Join(*clientMountPoint, "client"+strconv.Itoa(clientNum)))
 }
 
+func addFile(client *client.Client, file string) {
+	_, filename := path.Split(file)
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		fmt.Printf("Cannot add file %s: file does not exist\n", filename)
+		return
+	}
+	success := client.AddFile(file)
+	if success {
+		fmt.Printf("File %s successfully added\n", filename)
+	} else {
+		fmt.Printf("Cannot add file %s: file already added\n", filename)
+	}
+
+}
 func main() {
 	flag.Parse()
 
@@ -98,7 +112,7 @@ func main() {
 				break
 			}
 			for i := 1; i < len(tokens); i++ {
-				client.AddFile(tokens[i])
+				addFile(client, tokens[i])
 			}
 
 		case "info":
