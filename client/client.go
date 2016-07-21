@@ -11,6 +11,7 @@ import (
 	"search/indexer"
 	"search/server"
 	"search/util"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -124,5 +125,18 @@ func (c *Client) SearchWord(word string) []string {
 	for i := range filenames {
 		_, filenames[i] = path.Split(filenames[i])
 	}
+	return filenames
+}
+
+// GetFilenames returns all the filenames currently stored on the server as a
+// string slice.
+func (c *Client) GetFilenames() []string {
+	filenames := make([]string, len(c.reverseLookup))
+	i := 0
+	for filename := range c.reverseLookup {
+		filenames[i] = filename
+		i++
+	}
+	sort.Strings(filenames)
 	return filenames
 }
