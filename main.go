@@ -96,10 +96,13 @@ func main() {
 				break
 			}
 			client = startClient(server, clientNum)
-		case "ls":
+		case "ls", "l":
 			if client == nil {
 				fmt.Printf("%s: client not running\n", tokens[0])
 				break
+			}
+			for _, filename := range client.GetFilenames() {
+				fmt.Println(filename)
 			}
 
 		case "add":
@@ -114,7 +117,6 @@ func main() {
 			for i := 1; i < len(tokens); i++ {
 				addFile(client, tokens[i])
 			}
-
 		case "info":
 			server.PrintServerInfo()
 		case "exit", "q":
