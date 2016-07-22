@@ -13,16 +13,19 @@ import (
 	"search/searcher"
 	"search/util"
 	"strconv"
+	"time"
 )
 
 // Server contains all the necessary information for a running server.
 type Server struct {
-	mountPoint string   // Mount point of the server
-	lenMS      int      // Length of the master secret in bytes
-	keyHalves  [][]byte // The server-side keyhalves
-	salts      [][]byte // The salts for deriving the keys for the PRFs
-	numFiles   int      // The number of files currently stored in the server.  This is used to determine the next docID.
-	size       uint64   // The number of slots in the bloom filter index
+	mountPoint string        // Mount point of the server
+	lenMS      int           // Length of the master secret in bytes
+	keyHalves  [][]byte      // The server-side keyhalves
+	salts      [][]byte      // The salts for deriving the keys for the PRFs
+	numFiles   int           // The number of files currently stored in the server.  This is used to determine the next docID.
+	size       uint64        // The number of slots in the bloom filter index
+	latency    time.Duration // The latency between the server and the client
+	bandwidth  int           // The bandwidth of the link betweem the server and the client (in bps)
 }
 
 // CreateServer initializes a server with `numClients` clients with a master
@@ -51,6 +54,16 @@ func CreateServer(numClients, lenMS, lenSalt int, mountPoint string, fpRate floa
 	return s
 }
 
+// CreateServerWithLog behaves the same as `CreateServer`, except for that it
+// also sets the logging parameters for the server.
+func CreateServerWithLog(numClients, lenMS, lenSalt int, mountPoint string, fpRate float64, numUniqWords uint64, latency time.Duration, bandwidth int) *Server {
+	s := CreateServer(numClients, lenMS, lenSalt, mountPoint, fpRate, numUniqWords)
+	s.latency = latency
+	s.bandwidth = bandwidth
+	s.writeToFile()
+	return s
+}
+
 // LoadServer initializes a Server by reading the metadata stored at
 // `mountPoint` and restoring the server status.
 func LoadServer(mountPoint string) *Server {
@@ -67,6 +80,8 @@ func LoadServer(mountPoint string) *Server {
 	dec.Decode(&s.keyHalves)
 	dec.Decode(&s.lenMS)
 	dec.Decode(&s.size)
+	dec.Decode(&s.latency)
+	dec.Decode(&s.bandwidth)
 
 	input.Close()
 
@@ -84,6 +99,8 @@ func (s *Server) writeToFile() {
 	enc.Encode(s.keyHalves)
 	enc.Encode(s.lenMS)
 	enc.Encode(s.size)
+	enc.Encode(s.latency)
+	enc.Encode(s.bandwidth)
 
 	file.Close()
 }
@@ -180,5 +197,14 @@ func (s *Server) PrintServerInfo() {
 	fmt.Println("Number of Clients:", len(s.keyHalves))
 	fmt.Println("Length of Master Secret:", s.lenMS)
 	fmt.Println("Number of PRFs:", len(s.salts))
+	fmt.Println("Server Latency:", s.latency.String())
+	bwUnits := []string{"bps", "kbps", "mbps"}
+	scale := 0
+	bw := float64(s.bandwidth)
+	for bw >= 1024 && scale < 2 {
+		bw /= 1024
+		scale++
+	}
+	fmt.Printf("Connection Bandwidth: %.1f%s\n", bw, bwUnits[scale])
 	fmt.Println("Number of Files:", s.numFiles)
 }
