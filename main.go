@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"search/client"
 	"search/server"
 	"strconv"
@@ -54,15 +55,20 @@ func startClient(server *server.Server, clientNum int) *client.Client {
 // added.
 func addFile(client *client.Client, file string) {
 	_, filename := path.Split(file)
-	if _, err := os.Stat(file); os.IsNotExist(err) {
-		fmt.Printf("Cannot add file %s: file does not exist\n", filename)
-		return
-	}
 	success := client.AddFile(file)
 	if success {
 		fmt.Printf("File %s successfully added\n", filename)
 	} else {
 		fmt.Printf("Cannot add file %s: file already added\n", filename)
+	}
+}
+
+func addDirectory(client *client.Client) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() && info.Name()[0] != '.' {
+			addFile(client, path)
+		}
+		return nil
 	}
 }
 
@@ -152,8 +158,18 @@ func main() {
 				break
 			}
 			for i := 1; i < len(tokens); i++ {
-				addFile(client, tokens[i])
+				info, err := os.Stat(tokens[i])
+				if os.IsNotExist(err) {
+					fmt.Println("Invalid path", tokens[i])
+					continue
+				}
+				if info.IsDir() {
+					filepath.Walk(tokens[i], addDirectory(client))
+				} else {
+					addFile(client, tokens[i])
+				}
 			}
+
 		case "info", "i":
 			server.PrintServerInfo()
 		case "exit", "q":
