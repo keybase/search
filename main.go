@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// Sets up the flags
+// Sets up the server-side flags
 var numClients = flag.Int("num_clients", 5, "the number of clients for the server")
 var lenMS = flag.Int("len_ms", 8, "the length of the master secret")
 var lenSalt = flag.Int("len_salt", 8, "the length of the salts used to generate the PRFs")
@@ -20,9 +20,12 @@ var fpRate = flag.Float64("fp_rate", 0.000001, "the desired false positive rate 
 var numUniqWords = flag.Uint64("num_words", uint64(10000), "the expected number of unique words in all the documents")
 var serverMountPoint = flag.String("server_mp", "server_fs", "the mount point for the server where all the server side data is stored")
 
+// Sets up the client-side flags
 var defaultClientNum = flag.Int("default_client_num", 0, "the dafault running client (set to -1 to initialize without a client)")
 var clientMountPoint = flag.String("client_mp", "client_fs", "the mount point for the client where the client stores all the data")
 
+// startServer initializes the server for the program.  It either creates a new
+// one or loads from the server metadata at the mount point.
 func startServer() *server.Server {
 	if _, err := os.Stat(path.Join(*serverMountPoint, "serverMD")); err == nil {
 		fmt.Println("Server metadata found, loading server from mount point", *serverMountPoint)
@@ -37,6 +40,7 @@ func startServer() *server.Server {
 	return server.CreateServer(*numClients, *lenMS, *lenSalt, *serverMountPoint, *fpRate, *numUniqWords)
 }
 
+// startClient initializes a client with `clientNum` connected to `server`.
 func startClient(server *server.Server, clientNum int) *client.Client {
 	if clientNum == -1 {
 		fmt.Println("No client running")
@@ -46,6 +50,8 @@ func startClient(server *server.Server, clientNum int) *client.Client {
 	return client.CreateClient(server, clientNum, path.Join(*clientMountPoint, "client"+strconv.Itoa(clientNum)))
 }
 
+// addFile adds `file` to `client` if `file` exists and has not already been
+// added.
 func addFile(client *client.Client, file string) {
 	_, filename := path.Split(file)
 	if _, err := os.Stat(file); os.IsNotExist(err) {
@@ -58,8 +64,21 @@ func addFile(client *client.Client, file string) {
 	} else {
 		fmt.Printf("Cannot add file %s: file already added\n", filename)
 	}
-
 }
+
+// A list of commands:
+//	-client/c X
+//			Starts running client with client number X
+//	-ls/l
+//			Lists all the files on the server
+//	-search/s w1 w2 w3 ...
+//			Searches the words in the server
+//	-add/a f1 f2 f3 ...
+//			Adds the files to the system
+//	-info/i
+//			Prints the server information
+//	-exit/q
+//			Exits the program
 func main() {
 	flag.Parse()
 
@@ -85,7 +104,7 @@ func main() {
 		cmd = cmd[:len(cmd)-1]
 		tokens := strings.Split(cmd, " ")
 		switch tokens[0] {
-		case "client":
+		case "client", "c":
 			if len(tokens) < 2 {
 				fmt.Printf("%s: client number missing\n", tokens[0])
 				break
@@ -123,7 +142,7 @@ func main() {
 					fmt.Printf("\t%s\n", filename)
 				}
 			}
-		case "add":
+		case "add", "a":
 			if client == nil {
 				fmt.Printf("%s: client not running\n", tokens[0])
 				break
@@ -135,7 +154,7 @@ func main() {
 			for i := 1; i < len(tokens); i++ {
 				addFile(client, tokens[i])
 			}
-		case "info":
+		case "info", "i":
 			server.PrintServerInfo()
 		case "exit", "q":
 			fmt.Println("Program exited.")
