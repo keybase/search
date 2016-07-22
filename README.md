@@ -24,7 +24,7 @@ configurable parameters.
 
 A list of commands currently supported:
 ```
-  client/c X
+	client/c X
 			Starts running client with client number X
 	ls/l
 			Lists all the files on the server
