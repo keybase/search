@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"search/index"
+	"search/logger"
 	"search/searcher"
 	"search/util"
 	"strconv"
@@ -109,6 +110,8 @@ func (s *Server) writeToFile() {
 // to the number of files currently in the server and updates the count.
 // Returns the document ID.
 func (s *Server) AddFile(content []byte) int {
+	logger.AddTime(s.latency * 2)
+	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
 	output, _ := os.Create(path.Join(s.mountPoint, strconv.Itoa(s.numFiles)))
 	output.Write(content)
 	s.numFiles++
@@ -120,13 +123,17 @@ func (s *Server) AddFile(content []byte) int {
 // GetFile returns the content of the document with `docID`.  Behavior is
 // undefined if the docID is invalid (out of range).
 func (s *Server) GetFile(docID int) []byte {
+	logger.AddTime(s.latency * 2)
 	content, _ := ioutil.ReadFile(path.Join(s.mountPoint, strconv.Itoa(docID)))
+	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
 	return content
 }
 
 // WriteIndex writes a SecureIndex to the disk of the server.
 func (s *Server) WriteIndex(si index.SecureIndex) {
+	logger.AddTime(s.latency * 2)
 	output := si.Marshal()
+	logger.AddTime(time.Millisecond * time.Duration(float64(len(output))*8*1000/float64(s.bandwidth)))
 	file, _ := os.Create(path.Join(s.mountPoint, strconv.Itoa(si.DocID)+".index"))
 	file.Write(output)
 	file.Close()
@@ -142,17 +149,21 @@ func (s *Server) readIndex(docID int) index.SecureIndex {
 // SearchWord searchers the server for a word with `trapdoors`.  Returns a list
 // of document ids of files possibly containing the word in increasing order.
 func (s *Server) SearchWord(trapdoors [][]byte) []int {
+	logger.AddTime(s.latency * 2)
 	var result []int
 	for i := 0; i < s.numFiles; i++ {
 		if searcher.SearchSecureIndex(s.readIndex(i), trapdoors) {
 			result = append(result, i)
 		}
 	}
+	logger.AddTime(time.Millisecond * time.Duration(float64(len(trapdoors)*len(trapdoors[0])+len(result))*8*1000/float64(s.bandwidth)))
 	return result
 }
 
 // WriteLookupTable writes `content` to the file "lookupTable".
 func (s *Server) WriteLookupTable(content []byte) {
+	logger.AddTime(s.latency * 2)
+	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
 	file, _ := os.Create(path.Join(s.mountPoint, "lookupTable"))
 	file.Write(content)
 	file.Close()
@@ -161,31 +172,39 @@ func (s *Server) WriteLookupTable(content []byte) {
 // ReadLookupTable reads the content in the file "lookupTable" and returns it in
 // a byte slice.  If not found, returns false as the second return value.
 func (s *Server) ReadLookupTable() ([]byte, bool) {
+	logger.AddTime(s.latency * 2)
 	if _, err := os.Stat(path.Join(s.mountPoint, "lookupTable")); os.IsNotExist(err) {
 		return []byte{}, false
 	}
 	content, _ := ioutil.ReadFile(path.Join(s.mountPoint, "lookupTable"))
+	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
 	return content, true
 }
 
 // GetNumClients returns the number of clients for this server.
 func (s *Server) GetNumClients() int {
+	logger.AddTime(s.latency * 2)
 	return len(s.keyHalves)
 }
 
 // GetKeyHalf returns the server-side key half for client with `clientNum`.
 // Behavior is undefined if `clientNum` is invalid (out of range).
 func (s *Server) GetKeyHalf(clientNum int) []byte {
+	logger.AddTime(s.latency * 2)
+	logger.AddTime(time.Millisecond * time.Duration(float64(len(s.keyHalves[0]))*8*1000/float64(s.bandwidth)))
 	return s.keyHalves[clientNum]
 }
 
 // GetSalts returns the salts to the client.
 func (s *Server) GetSalts() [][]byte {
+	logger.AddTime(s.latency * 2)
+	logger.AddTime(time.Millisecond * time.Duration(float64(len(s.salts)*len(s.salts[0]))*8*1000/float64(s.bandwidth)))
 	return s.salts
 }
 
 // GetSize returns the size of the indexes on the server.
 func (s *Server) GetSize() uint64 {
+	logger.AddTime(s.latency * 2)
 	return s.size
 }
 

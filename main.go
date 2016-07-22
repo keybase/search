@@ -8,9 +8,11 @@ import (
 	"path"
 	"path/filepath"
 	"search/client"
+	"search/logger"
 	"search/server"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Sets up the server-side flags
@@ -25,6 +27,11 @@ var serverMountPoint = flag.String("server_mp", ".server_fs", "the mount point f
 var defaultClientNum = flag.Int("default_client_num", 0, "the dafault running client (set to -1 to initialize without a client)")
 var clientMountPoint = flag.String("client_mp", ".client_fs", "the mount point for the client where the client stores all the data")
 
+// Sets up the logger
+var enableLogger = flag.Bool("enable_logger", false, "whether time logging should be enabled")
+var latency = flag.Int64("latency", 100, "the latency between the server and the client (in ms)")
+var bandwidth = flag.Int("bandwidth", 1024*1024, "the bandwidth between the server and the client (in bps)")
+
 // startServer initializes the server for the program.  It either creates a new
 // one or loads from the server metadata at the mount point.
 func startServer() *server.Server {
@@ -38,7 +45,7 @@ func startServer() *server.Server {
 		}
 	}
 	fmt.Println("No previous server metadata found, starting new server at mount point", *serverMountPoint)
-	return server.CreateServer(*numClients, *lenMS, *lenSalt, *serverMountPoint, *fpRate, *numUniqWords)
+	return server.CreateServerWithLog(*numClients, *lenMS, *lenSalt, *serverMountPoint, *fpRate, *numUniqWords, time.Millisecond*time.Duration(*latency), *bandwidth)
 }
 
 // startClient initializes a client with `clientNum` connected to `server`.
@@ -105,12 +112,18 @@ func main() {
 	client := startClient(server, *defaultClientNum)
 	fmt.Println()
 
+	// Initializes the logger
+	if *enableLogger {
+		logger.Enable()
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("> ")
 		cmd, _ := reader.ReadString('\n')
 		cmd = cmd[:len(cmd)-1]
 		tokens := strings.Split(cmd, " ")
+		logger.Start(tokens[0])
 		switch tokens[0] {
 		case "client", "c":
 			if len(tokens) < 2 {
@@ -181,5 +194,6 @@ func main() {
 		default:
 			fmt.Printf("%s: command not found\n", tokens[0])
 		}
+		logger.Log(tokens[0])
 	}
 }
