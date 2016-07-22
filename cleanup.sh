@@ -1,1 +1,1 @@
-rm -rf server_fs client_fs
+rm -rf .server_fs .client_fs

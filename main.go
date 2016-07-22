@@ -19,11 +19,11 @@ var lenMS = flag.Int("len_ms", 8, "the length of the master secret")
 var lenSalt = flag.Int("len_salt", 8, "the length of the salts used to generate the PRFs")
 var fpRate = flag.Float64("fp_rate", 0.000001, "the desired false positive rate for searchable encryption")
 var numUniqWords = flag.Uint64("num_words", uint64(10000), "the expected number of unique words in all the documents")
-var serverMountPoint = flag.String("server_mp", "server_fs", "the mount point for the server where all the server side data is stored")
+var serverMountPoint = flag.String("server_mp", ".server_fs", "the mount point for the server where all the server side data is stored")
 
 // Sets up the client-side flags
 var defaultClientNum = flag.Int("default_client_num", 0, "the dafault running client (set to -1 to initialize without a client)")
-var clientMountPoint = flag.String("client_mp", "client_fs", "the mount point for the client where the client stores all the data")
+var clientMountPoint = flag.String("client_mp", ".client_fs", "the mount point for the client where the client stores all the data")
 
 // startServer initializes the server for the program.  It either creates a new
 // one or loads from the server metadata at the mount point.
@@ -65,8 +65,10 @@ func addFile(client *client.Client, file string) {
 
 func addDirectory(client *client.Client) filepath.WalkFunc {
 	return func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() && info.Name()[0] != '.' {
+		if !info.IsDir() {
 			addFile(client, path)
+		} else if info.Name()[0] == '.' && info.Name() != "." {
+			return filepath.SkipDir
 		}
 		return nil
 	}
