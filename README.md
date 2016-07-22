@@ -24,16 +24,16 @@ configurable parameters.
 
 A list of commands currently supported:
 ```
-  -client/c X
+  client/c X
 			Starts running client with client number X
-	-ls/l
+	ls/l
 			Lists all the files on the server
-	-search/s w1 w2 w3 ...
+	search/s w1 w2 w3 ...
 			Searches the words in the server
-	-add/a f1 f2 d1 d2 ...
+	add/a f1 f2 d1 d2 ...
 			Adds the files and directories (recursive) to the system
-	-info/i
+	info/i
 			Prints the server information
-	-exit/q
+	exit/q
 			Exits the program
 ```
