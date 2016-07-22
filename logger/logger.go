@@ -5,53 +5,73 @@ import (
 	"time"
 )
 
-// Logger allows simple logging for the time that a function takes to execute.
+// Logger allows simple logging for the time that a function, or a set of
+// functions, takes to execute.
+//
 // In addition, this logger allows fake time to be added to simulate work
-// supposed to be done.  Logging is enabled by default.  To turn them off, set
-// `logger.enabled = false`.  A typical use case would be:
+// supposed to be done.  Logging is disabled by default.  To turn them on, call
+// `logger.Enable()`.  A typical use case would be:
 //
 // func test() {
-//	 logger.Enabled = true
-//   l := CreateLogger("test")
-//	 defer l.LogTime()
+//   logger.Enable()
+//   logger.Start("test")
 //
 //   ... Some Work ...
 //
-//   l.AddTime(time.Minute * 2)  // Simultaes two minutes doing some work
+//   logger.AddTime(time.Minute * 2)  // Simultaes two minutes doing some work
 //
 //   ... Other Work ...
 //
+//   logger.Log("test")
 // }
-type Logger struct {
-	name    string
-	start   time.Time
-	elapsed time.Duration
-}
 
-// Enabled determines whether logging messages should be printed.  Defaulted to
-// false.
-var Enabled = false
+// timeLogs stores the correspondance between entry names and the start time of
+// each entry.  The start time would be adjusted accordingly to account for the
+// `Addtime` function.
+var timeLogs = make(map[string]time.Time)
 
-// CreateLogger creates a logger for `name`.
-func CreateLogger(name string) *Logger {
-	l := new(Logger)
-	l.start = time.Now()
-	l.elapsed = 0
-	l.name = name
-	return l
-}
+// enabled determines whether the logger is enables.  Defaulted to false.
+var enabled = false
 
-// AddTime adds a time period of `t` as if that period of time had elapsed.
-func (l *Logger) AddTime(t time.Duration) {
-	l.elapsed += t
-}
-
-// LogTime logs how long it has been since the logger was created, together with
-// all the time added to the logger.  This also returns the duration that is
-// being printed.
-func (l *Logger) LogTime() time.Duration {
-	if Enabled {
-		log.Printf("%s took %s", l.name, l.elapsed+time.Since(l.start))
+// Start starts the timer for `name`.
+func Start(name string) {
+	if !enabled {
+		return
 	}
-	return l.elapsed + time.Since(l.start)
+	timeLogs[name] = time.Now()
+}
+
+// Enable enables the logger functionality.
+func Enable() {
+	enabled = true
+}
+
+// Disable disables the entire logger and clears the current log entries.
+func Disable() {
+	enabled = false
+	timeLogs = make(map[string]time.Time)
+}
+
+// AddTime adds a time period to the logger as if that amount of time has
+// passed.
+func AddTime(duration time.Duration) {
+	if !enabled {
+		return
+	}
+	for name := range timeLogs {
+		timeLogs[name] = timeLogs[name].Add(-duration)
+	}
+}
+
+// Log logs the time for `name` and remove it from the log entries.
+func Log(name string) time.Duration {
+	if !enabled {
+		return 0
+	}
+	if startTime, found := timeLogs[name]; found {
+		log.Printf("%s took %s", name, time.Since(startTime))
+		delete(timeLogs, name)
+		return time.Since(startTime)
+	}
+	return 0
 }
