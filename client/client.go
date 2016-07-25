@@ -73,19 +73,31 @@ func (c *Client) AddFile(filename string) error {
 	if _, found := c.reverseLookup[file]; found {
 		return errors.New("file already exists")
 	}
-	content, _ := ioutil.ReadFile(filename)
-	docID := c.server.AddFile(content)
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	docID, errAddFile := c.server.AddFile(content)
+	if errAddFile != nil {
+		return errAddFile
+	}
 	c.lookupTable[strconv.Itoa(docID)] = file
 	c.reverseLookup[file] = strconv.Itoa(docID)
 	// Write the lookup table to the server
 	// NOTE: Factor out and add encryption
-	table, _ := json.Marshal(c.lookupTable)
+	table, errJson := json.Marshal(c.lookupTable)
+	if errJson != nil {
+		return err
+	}
 	c.server.WriteLookupTable(table)
 
-	infile, _ := os.Open(filename)
+	infile, errInfile := os.Open(filename)
+	if errInfile != nil {
+		return errInfile
+	}
 	defer infile.Close()
 	si := c.indexer.BuildSecureIndex(docID, infile, len(content))
-	err := c.server.WriteIndex(si)
+	err = c.server.WriteIndex(si)
 	if err != nil {
 		return err
 	}
@@ -113,7 +125,7 @@ func (c *Client) getFile(docID int) {
 	if _, err := os.Stat(filename); err == nil {
 		return
 	}
-	content := c.server.GetFile(docID)
+	content, _ := c.server.GetFile(docID)
 	outfile, _ := os.Create(filename)
 	outfile.Write(content)
 }

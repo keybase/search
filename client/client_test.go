@@ -112,7 +112,7 @@ func TestAddFile(t *testing.T) {
 		t.Fatalf("lookup table not set up correctly on the server")
 	}
 
-	if !bytes.Equal(s.GetFile(0), []byte(content)) {
+	if actual, err := s.GetFile(0); err != nil || !bytes.Equal(actual, []byte(content)) {
 		t.Fatalf("file not written correctly to the server")
 	}
 
