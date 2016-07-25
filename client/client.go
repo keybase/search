@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -65,12 +66,12 @@ func CreateClient(s *server.Server, clientNum int, directory string) *Client {
 
 // AddFile adds a file to the system.  It first sends the file and index to the
 // server, and then stores the file and its lookup entry locally on the client.
-// It also updates the lookup table stored on the server.  Returns true on
-// success, false if the file already exists.
-func (c *Client) AddFile(filename string) bool {
+// It also updates the lookup table stored on the server.  Returns an error if
+// the file or index is not successfully added.
+func (c *Client) AddFile(filename string) error {
 	_, file := path.Split(filename)
 	if _, found := c.reverseLookup[file]; found {
-		return false
+		return errors.New("file already exists")
 	}
 	content, _ := ioutil.ReadFile(filename)
 	docID := c.server.AddFile(content)
@@ -84,14 +85,20 @@ func (c *Client) AddFile(filename string) bool {
 	infile, _ := os.Open(filename)
 	defer infile.Close()
 	si := c.indexer.BuildSecureIndex(docID, infile, len(content))
-	c.server.WriteIndex(si)
+	err := c.server.WriteIndex(si)
+	if err != nil {
+		return err
+	}
 
-	outfile, _ := os.Create(path.Join(c.directory, file))
+	outfile, errOut := os.Create(path.Join(c.directory, file))
+	if errOut != nil {
+		return errOut
+	}
 	defer outfile.Close()
 
 	infile.Seek(0, 0)
 	io.Copy(outfile, infile)
-	return true
+	return nil
 }
 
 // getFile fetches the file with `docID`, if that file cannot be found on the

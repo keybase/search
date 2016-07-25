@@ -62,11 +62,11 @@ func startClient(server *server.Server, clientNum int) *client.Client {
 // added.
 func addFile(client *client.Client, file string) {
 	_, filename := path.Split(file)
-	success := client.AddFile(file)
-	if success {
+	err := client.AddFile(file)
+	if err == nil {
 		fmt.Printf("File %s successfully added\n", filename)
 	} else {
-		fmt.Printf("Cannot add file %s: file already added\n", filename)
+		fmt.Printf("Cannot add file %s: %s\n", filename, err)
 	}
 }
 

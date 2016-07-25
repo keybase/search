@@ -89,11 +89,11 @@ func TestAddFile(t *testing.T) {
 	_, filename := path.Split(file)
 	defer os.Remove(file)
 
-	if !c.AddFile(file) {
+	if c.AddFile(file) != nil {
 		t.Fatalf("first time adding file fails")
 	}
 
-	if c.AddFile(file) {
+	if c.AddFile(file) == nil {
 		t.Fatalf("same file added twice")
 	}
 
