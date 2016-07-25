@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash"
 
@@ -18,12 +19,11 @@ type SecureIndex struct {
 	Hash        func() hash.Hash  // The hash function to be used for HMAC.
 }
 
-// Marshal serializes a SecureIndex into a byte slice.
-// TODO: Use the `encoding.BinaryMarshaler` interface.
-func (si *SecureIndex) Marshal() []byte {
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (si *SecureIndex) MarshalBinary() ([]byte, error) {
 	bfBytes, err := bitarray.Marshal(si.BloomFilter)
 	if err != nil {
-		fmt.Println("Cannot serialize the index to bytes")
+		return nil, err
 	}
 	length := 24 + len(bfBytes)
 	result := make([]byte, length)
@@ -31,7 +31,7 @@ func (si *SecureIndex) Marshal() []byte {
 	binary.PutVarint(result[8:], int64(si.Hash().Size()))
 	binary.PutUvarint(result[16:], si.Size)
 	copy(result[24:], bfBytes)
-	return result
+	return result, nil
 }
 
 // Reads an int from the input byte slice.
@@ -43,12 +43,10 @@ func readInt(input []byte) int {
 	return int(num)
 }
 
-// Unmarshal deserializes a byte slice into a SecureIndex.
-func Unmarshal(input []byte) SecureIndex {
-	var si SecureIndex
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (si *SecureIndex) UnmarshalBinary(input []byte) error {
 	if len(input) < 24 {
-		fmt.Println("Cannot unmarshal the bytes into a SecureIndex: Insufficient length")
-		return si
+		return errors.New("Insufficient binary length")
 	}
 	si.DocID = readInt(input[0:8])
 	if readInt(input[8:16]) == 256/8 {
@@ -60,7 +58,7 @@ func Unmarshal(input []byte) SecureIndex {
 	var err error
 	si.BloomFilter, err = bitarray.Unmarshal(input[24:])
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
-	return si
+	return nil
 }

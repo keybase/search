@@ -136,20 +136,27 @@ func (s *Server) GetFile(docID int) []byte {
 }
 
 // WriteIndex writes a SecureIndex to the disk of the server.
-func (s *Server) WriteIndex(si index.SecureIndex) {
+func (s *Server) WriteIndex(si index.SecureIndex) error {
 	logger.AddTime(s.latency * 2)
-	output := si.Marshal()
+	output, errMarshal := si.MarshalBinary()
+	if errMarshal != nil {
+		return errMarshal
+	}
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(output))*8*1000/float64(s.bandwidth)))
-	file, _ := os.Create(path.Join(s.directory, strconv.Itoa(si.DocID)+".index"))
+	file, err := os.Create(path.Join(s.directory, strconv.Itoa(si.DocID)+".index"))
+	if err != nil {
+		return err
+	}
 	file.Write(output)
 	file.Close()
+	return nil
 }
 
 // readIndex loads an index from the disk.
-func (s *Server) readIndex(docID int) index.SecureIndex {
+func (s *Server) readIndex(docID int) (si index.SecureIndex, err error) {
 	input, _ := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)+".index"))
-	si := index.Unmarshal(input)
-	return si
+	err = si.UnmarshalBinary(input)
+	return
 }
 
 // SearchWord searches the server for a word with `trapdoors`.  Returns a list
@@ -158,7 +165,12 @@ func (s *Server) SearchWord(trapdoors [][]byte) []int {
 	logger.AddTime(s.latency * 2)
 	var result []int
 	for i := 0; i < s.numFiles; i++ {
-		if searcher.SearchSecureIndex(s.readIndex(i), trapdoors) {
+		si, err := s.readIndex(i)
+		// Skip the file if there is an error reading the index
+		if err != nil {
+			continue
+		}
+		if searcher.SearchSecureIndex(si, trapdoors) {
 			result = append(result, i)
 		}
 	}

@@ -20,8 +20,15 @@ func TestMarshalAndUnmarshal(t *testing.T) {
 	si.DocID = 42
 	si.Size = uint64(1900000)
 	si.Hash = sha256.New
-	bytes := si.Marshal()
-	si2 := Unmarshal(bytes)
+	bytes, err1 := si.MarshalBinary()
+	if err1 != nil {
+		t.Fatalf("Error when marshaling the index")
+	}
+	si2 := new(SecureIndex)
+	err2 := si2.UnmarshalBinary(bytes)
+	if err2 != nil {
+		t.Fatalf("Error when unmarshaling the index")
+	}
 	if si2.DocID != si.DocID {
 		t.Fatalf("DocID does not match")
 	}
