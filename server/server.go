@@ -211,7 +211,7 @@ func (s *Server) GetSize() uint64 {
 // PrintServerInfo prints out the basic information of the server.
 func (s *Server) PrintServerInfo() {
 	fmt.Printf("Server ID: %.3x\n", s.keyHalves[0])
-	fmt.Println("Mount Point:", s.directory)
+	fmt.Println("Directory:", s.directory)
 	fmt.Println("Size:", s.size)
 	fmt.Println("Number of Clients:", len(s.keyHalves))
 	fmt.Println("Length of Master Secret:", s.lenMS)
