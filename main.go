@@ -28,7 +28,7 @@ var defaultClientNum = flag.Int("default_client_num", 0, "the dafault running cl
 var clientDirectory = flag.String("client_mp", ".client_fs", "the directory for the client where the client stores all the data")
 
 // Sets up the logger
-var enableLogger = flag.Bool("enable_logger", false, "whether time logging should be enabled")
+var enableLogger = flag.Bool("enable_logger", true, "whether time logging should be enabled")
 var latency = flag.Int64("latency", 100, "the latency between the server and the client (in ms)")
 var bandwidth = flag.Int("bandwidth", 1024*1024, "the bandwidth between the server and the client (in bps)")
 
