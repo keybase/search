@@ -17,7 +17,6 @@ import (
 // SecureIndexBuilder stores the essential information needed to build the
 // indexes for the documents.
 type SecureIndexBuilder struct {
-	numKeys      int                   // The number of keys.  This is also the number of PRFs.
 	keys         [][]byte              // The keys for the PRFs. Derived from the masterSecret and the salts.
 	hash         func() hash.Hash      // The hash function to be used for HMAC.
 	trapdoorFunc func(string) [][]byte // The trapdoor function for the words
@@ -34,11 +33,10 @@ func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][
 		sib.keys[index] = pbkdf2.Key(masterSecret, salt, 4096, 32, sha256.New)
 	}
 	sib.hash = h
-	sib.numKeys = len(salts)
 	sib.size = size
 	sib.trapdoorFunc = func(word string) [][]byte {
-		trapdoors := make([][]byte, sib.numKeys)
-		for i := 0; i < sib.numKeys; i++ {
+		trapdoors := make([][]byte, len(salts))
+		for i := 0; i < len(salts); i++ {
 			mac := hmac.New(sib.hash, sib.keys[i])
 			mac.Write([]byte(word))
 			trapdoors[i] = mac.Sum(nil)
@@ -84,7 +82,7 @@ func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterati
 // *encrypted* length of `fileLen`.
 func (sib *SecureIndexBuilder) BuildSecureIndex(docID int, document *os.File, fileLen int) index.SecureIndex {
 	bf, numUniqWords := sib.buildBloomFilter(docID, document)
-	sib.blindBloomFilter(bf, (fileLen-numUniqWords)*sib.numKeys)
+	sib.blindBloomFilter(bf, (fileLen-numUniqWords)*len(sib.keys))
 	return index.SecureIndex{BloomFilter: bf, DocID: docID, Size: sib.size, Hash: sib.hash}
 }
 

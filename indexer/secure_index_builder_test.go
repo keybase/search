@@ -29,32 +29,29 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 	if sib1.hash == nil || sib2.hash == nil {
 		t.Fatalf("hash function is not set correctly")
 	}
-	if sib1.numKeys != len(sib1.keys) || sib2.numKeys != len(sib2.keys) {
-		t.Fatalf("numKeys not set up correctly")
-	}
-	if sib1.numKeys != sib2.numKeys {
-		t.Fatalf("the two instances have different numbers of keys")
-	}
 	if sib1.size != size || sib2.size != size {
 		t.Fatalf("the sizes of the indexes not set up correctly")
 	}
-	for i := 0; i < sib1.numKeys; i++ {
+	if len(sib1.keys) != len(sib2.keys) {
+		t.Fatalf("the two indexers have different numbers of keys")
+	}
+	for i := 0; i < len(sib1.keys); i++ {
 		if !bytes.Equal(sib1.keys[i], sib2.keys[i]) {
 			t.Fatalf("the two instances have different keys")
 		}
 	}
 	trapdoors1 := sib1.trapdoorFunc("test")
 	trapdoors2 := sib2.trapdoorFunc("test")
-	if sib1.numKeys != len(trapdoors1) || sib2.numKeys != len(trapdoors2) {
+	if len(sib1.keys) != len(trapdoors1) || len(sib2.keys) != len(trapdoors2) {
 		t.Fatalf("incorrect number of trapdoor functions")
 	}
-	for i := 0; i < sib1.numKeys; i++ {
+	for i := 0; i < len(sib1.keys); i++ {
 		if !bytes.Equal(trapdoors1[i], trapdoors2[i]) {
 			t.Fatalf("the two instances have different trapdoor functions")
 		}
 	}
 	trapdoors1dup := sib1.trapdoorFunc("test")
-	for i := 0; i < sib1.numKeys; i++ {
+	for i := 0; i < len(sib1.keys); i++ {
 		if !bytes.Equal(trapdoors1[i], trapdoors1dup[i]) {
 			t.Fatalf("trapdoor functions not deterministic")
 		}
