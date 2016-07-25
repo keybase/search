@@ -37,7 +37,7 @@ func (si *SecureIndex) MarshalBinary() ([]byte, error) {
 func readInt(input []byte) (int, error) {
 	num, numBytes := binary.Varint(input)
 	if numBytes <= 0 {
-		return 0, errors.New("Error in reading the int")
+		return 0, errors.New("cannot read the int")
 	}
 	return int(num), nil
 }
@@ -45,7 +45,7 @@ func readInt(input []byte) (int, error) {
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
 func (si *SecureIndex) UnmarshalBinary(input []byte) error {
 	if len(input) < 24 {
-		return errors.New("Insufficient binary length")
+		return errors.New("insufficient binary length")
 	}
 	var err error
 	si.DocID, err = readInt(input[0:8])
