@@ -24,7 +24,7 @@ type SecureIndexBuilder struct {
 	size         uint64                // The size of each index, i.e. the number of buckets in the bloom filter.  Smaller size will lead to higher false positive rates.
 }
 
-// CreateSecureIndexBuilder instantiates a `secureIndexBuilder`.  Sets up the
+// CreateSecureIndexBuilder instantiates a `SecureIndexBuilder`.  Sets up the
 // hash function, and derives the keys from the master secret and salts by using
 // PBKDF2.  Finally, sets up the trapdoor function for the words.
 func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][]byte, size uint64) *SecureIndexBuilder {
