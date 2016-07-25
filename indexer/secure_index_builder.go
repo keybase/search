@@ -62,7 +62,6 @@ func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (b
 		for _, trapdoor := range trapdoors {
 			mac := hmac.New(sib.hash, trapdoor)
 			mac.Write([]byte(string(docID)))
-			// Ignore the error as we need to truncate the 256-bit hash into 64 bits
 			codeword, _ := binary.Uvarint(mac.Sum(nil))
 			bf.SetBit(codeword % sib.size)
 		}
