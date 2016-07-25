@@ -115,6 +115,8 @@ func (s *Server) writeToFile() {
 // Returns the document ID.
 func (s *Server) AddFile(content []byte) int {
 	logger.AddTime(s.latency * 2)
+	// The `*1.5` is included to account for the possible increase in file length
+	// after excryption.
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
 	output, _ := os.Create(path.Join(s.directory, strconv.Itoa(s.numFiles)))
 	output.Write(content)
@@ -150,7 +152,7 @@ func (s *Server) readIndex(docID int) index.SecureIndex {
 	return si
 }
 
-// SearchWord searchers the server for a word with `trapdoors`.  Returns a list
+// SearchWord searches the server for a word with `trapdoors`.  Returns a list
 // of document ids of files possibly containing the word in increasing order.
 func (s *Server) SearchWord(trapdoors [][]byte) []int {
 	logger.AddTime(s.latency * 2)
