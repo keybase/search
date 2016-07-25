@@ -19,7 +19,7 @@ import (
 
 // Server contains all the necessary information for a running server.
 type Server struct {
-	directory string        // Mount point of the server
+	directory string        // Directory of the server
 	lenMS      int           // Length of the master secret in bytes
 	keyHalves  [][]byte      // The server-side keyhalves
 	salts      [][]byte      // The salts for deriving the keys for the PRFs

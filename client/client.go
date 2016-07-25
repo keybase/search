@@ -18,7 +18,7 @@ import (
 
 // Client stores the necessary information for a client.
 type Client struct {
-	directory    string                      // Mount point for the client where all the files are stored
+	directory    string                      // Directory for the client where all the files are stored
 	server        *server.Server              // The server that this client is connected to
 	indexer       *indexer.SecureIndexBuilder // The indexer for the client
 	lookupTable   map[string]string           // A map from document ids to actual filenames
