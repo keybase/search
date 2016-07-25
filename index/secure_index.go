@@ -19,6 +19,7 @@ type SecureIndex struct {
 }
 
 // Marshal serializes a SecureIndex into a byte slice.
+// TODO: Use the `encoding.BinaryMarshaler` interface.
 func (si *SecureIndex) Marshal() []byte {
 	bfBytes, err := bitarray.Marshal(si.BloomFilter)
 	if err != nil {
