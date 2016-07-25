@@ -18,7 +18,7 @@ import (
 //
 //   ... Some Work ...
 //
-//   logger.AddTime(time.Minute * 2)  // Simultaes two minutes doing some work
+//   logger.AddTime(time.Minute * 2)  // Simulates two minutes doing some work
 //
 //   ... Other Work ...
 //
@@ -27,10 +27,10 @@ import (
 
 // timeLogs stores the correspondance between entry names and the start time of
 // each entry.  The start time would be adjusted accordingly to account for the
-// `Addtime` function.
+// `AddTime` function.
 var timeLogs = make(map[string]time.Time)
 
-// enabled determines whether the logger is enables.  Defaulted to false.
+// enabled determines whether the logger is enabled.  Defaulted to false.
 var enabled = false
 
 // Start starts the timer for `name`.
