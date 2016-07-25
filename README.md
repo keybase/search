@@ -12,10 +12,10 @@ To run the demo, simply do:
 go run main.go
 ```
 
-Or better, with time logging:
+Or to disable time logging:
 
 ```
-go run main.go --enable_logger
+go run main.go --enable_logger=false
 ```
 
 The clients have a default storage directory of `.client_fs/` and the server has
