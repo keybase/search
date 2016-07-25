@@ -5,12 +5,13 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/jxguan/go-datastructures/bitarray"
 	"io/ioutil"
 	"os"
 	"search/util"
 	"strings"
 	"testing"
+
+	"github.com/jxguan/go-datastructures/bitarray"
 )
 
 // Tests the constructor for `SecureIndexBuilder`.  Makes sure that all the

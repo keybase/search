@@ -5,12 +5,13 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/jxguan/go-datastructures/bitarray"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
 	"os"
 	"search/index"
 	"search/util"
+
+	"github.com/jxguan/go-datastructures/bitarray"
 )
 
 // SecureIndexBuilder stores the essential information needed to build the

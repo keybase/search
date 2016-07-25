@@ -5,8 +5,9 @@ import (
 	"crypto/sha512"
 	"encoding/binary"
 	"fmt"
-	"github.com/jxguan/go-datastructures/bitarray"
 	"hash"
+
+	"github.com/jxguan/go-datastructures/bitarray"
 )
 
 // SecureIndex defines the elements in a secure index.

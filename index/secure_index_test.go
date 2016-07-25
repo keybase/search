@@ -2,9 +2,10 @@ package index
 
 import (
 	"crypto/sha256"
-	"github.com/jxguan/go-datastructures/bitarray"
 	"search/util"
 	"testing"
+
+	"github.com/jxguan/go-datastructures/bitarray"
 )
 
 // TestMarshalAndUnmarshal tests the `Marshal` and `Unmarshal` functions.
