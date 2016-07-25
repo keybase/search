@@ -18,8 +18,8 @@ Or better, with time logging:
 go run main.go --enable_logger
 ```
 
-The clients have a defualt mount point of `.client_fs/` and the server has a
-default mount point of `.server_fs/`.  Use `go run main.go --help` to see other
+The clients have a default storage directory of `.client_fs/` and the server has
+a default directory of `.server_fs/`.  Use `go run main.go --help` to see other
 configurable parameters.
 
 A list of commands currently supported:
