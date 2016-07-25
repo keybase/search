@@ -59,9 +59,9 @@ func CreateServer(numClients, lenMS, lenSalt int, directory string, fpRate float
 	return
 }
 
-// CreateServerWithLog behaves the same as `CreateServer`, except for that it
-// also sets the logging parameters for the server.
-func CreateServerWithLog(numClients, lenMS, lenSalt int, directory string, fpRate float64, numUniqWords uint64, latency time.Duration, bandwidth int) (*Server, error) {
+// CreateServerWithNetConfig behaves the same as `CreateServer`, except for that it
+// also sets the network parameters for the server.
+func CreateServerWithNetConfig(numClients, lenMS, lenSalt int, directory string, fpRate float64, numUniqWords uint64, latency time.Duration, bandwidth int) (*Server, error) {
 	s, err := CreateServer(numClients, lenMS, lenSalt, directory, fpRate, numUniqWords)
 	s.latency = latency
 	s.bandwidth = bandwidth

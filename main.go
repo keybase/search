@@ -45,7 +45,7 @@ func startServer() (*server.Server, error) {
 		}
 	}
 	fmt.Println("No previous server metadata found, starting new server at directory", *serverDirectory)
-	return server.CreateServerWithLog(*numClients, *lenMS, *lenSalt, *serverDirectory, *fpRate, *numUniqWords, time.Millisecond*time.Duration(*latency), *bandwidth)
+	return server.CreateServerWithNetConfig(*numClients, *lenMS, *lenSalt, *serverDirectory, *fpRate, *numUniqWords, time.Millisecond*time.Duration(*latency), *bandwidth)
 }
 
 // startClient initializes a client with `clientNum` connected to `server`.
