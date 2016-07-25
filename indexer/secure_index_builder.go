@@ -72,7 +72,7 @@ func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (b
 	return bf, len(words)
 }
 
-// Blinds the bloom filter by setting randon bits to be on for `numIterations`
+// Blinds the bloom filter by setting random bits to be on for `numIterations`
 // iterations.
 func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int) {
 	for i := 0; i < numIterations; i++ {
