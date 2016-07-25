@@ -5,7 +5,6 @@ import (
 	"crypto/sha512"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"hash"
 
 	"github.com/jxguan/go-datastructures/bitarray"
@@ -35,12 +34,12 @@ func (si *SecureIndex) MarshalBinary() ([]byte, error) {
 }
 
 // Reads an int from the input byte slice.
-func readInt(input []byte) int {
+func readInt(input []byte) (int, error) {
 	num, numBytes := binary.Varint(input)
 	if numBytes <= 0 {
-		fmt.Println("Error in reading the int")
+		return 0, errors.New("Error in reading the int")
 	}
-	return int(num)
+	return int(num), nil
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
@@ -48,14 +47,21 @@ func (si *SecureIndex) UnmarshalBinary(input []byte) error {
 	if len(input) < 24 {
 		return errors.New("Insufficient binary length")
 	}
-	si.DocID = readInt(input[0:8])
-	if readInt(input[8:16]) == 256/8 {
+	var err error
+	si.DocID, err = readInt(input[0:8])
+	if err != nil {
+		return err
+	}
+	var hashLen int
+	hashLen, err = readInt(input[8:16])
+	if err != nil {
+		return err
+	} else if hashLen == 256/8 {
 		si.Hash = sha256.New
-	} else if readInt(input[8:16]) == 512/8 {
+	} else if hashLen == 512/8 {
 		si.Hash = sha512.New
 	}
 	si.Size, _ = binary.Uvarint(input[16:24])
-	var err error
 	si.BloomFilter, err = bitarray.Unmarshal(input[24:])
 	if err != nil {
 		return err
