@@ -66,8 +66,8 @@ func TestCreateServer(t *testing.T) {
 	if s.numFiles != 0 {
 		t.Fatalf("number of files not initialized to zero")
 	}
-	if dir != s.mountPoint {
-		t.Fatalf("server mount point not set up correctly")
+	if dir != s.directory {
+		t.Fatalf("server directory not set up correctly")
 	}
 	ms := calculateMasterSecret(0, s.keyHalves[0])
 	for i := 1; i < numClients; i++ {

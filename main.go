@@ -21,11 +21,11 @@ var lenMS = flag.Int("len_ms", 8, "the length of the master secret")
 var lenSalt = flag.Int("len_salt", 8, "the length of the salts used to generate the PRFs")
 var fpRate = flag.Float64("fp_rate", 0.000001, "the desired false positive rate for searchable encryption")
 var numUniqWords = flag.Uint64("num_words", uint64(10000), "the expected number of unique words in all the documents")
-var serverMountPoint = flag.String("server_mp", ".server_fs", "the mount point for the server where all the server side data is stored")
+var serverDirectory = flag.String("server_mp", ".server_fs", "the directory for the server where all the server side data is stored")
 
 // Sets up the client-side flags
 var defaultClientNum = flag.Int("default_client_num", 0, "the dafault running client (set to -1 to initialize without a client)")
-var clientMountPoint = flag.String("client_mp", ".client_fs", "the mount point for the client where the client stores all the data")
+var clientDirectory = flag.String("client_mp", ".client_fs", "the directory for the client where the client stores all the data")
 
 // Sets up the logger
 var enableLogger = flag.Bool("enable_logger", false, "whether time logging should be enabled")
@@ -33,19 +33,19 @@ var latency = flag.Int64("latency", 100, "the latency between the server and the
 var bandwidth = flag.Int("bandwidth", 1024*1024, "the bandwidth between the server and the client (in bps)")
 
 // startServer initializes the server for the program.  It either creates a new
-// one or loads from the server metadata at the mount point.
+// one or loads from the server metadata at the directory.
 func startServer() *server.Server {
-	if _, err := os.Stat(path.Join(*serverMountPoint, "serverMD")); err == nil {
-		fmt.Println("Server metadata found, loading server from mount point", *serverMountPoint)
-		return server.LoadServer(*serverMountPoint)
+	if _, err := os.Stat(path.Join(*serverDirectory, "serverMD")); err == nil {
+		fmt.Println("Server metadata found, loading server from directory", *serverDirectory)
+		return server.LoadServer(*serverDirectory)
 	}
-	if _, err := os.Stat(*serverMountPoint); os.IsNotExist(err) {
-		if os.Mkdir(*serverMountPoint, 0777) != nil {
-			fmt.Println("Failed to create the server mount point", *serverMountPoint)
+	if _, err := os.Stat(*serverDirectory); os.IsNotExist(err) {
+		if os.Mkdir(*serverDirectory, 0777) != nil {
+			fmt.Println("Failed to create the server directory", *serverDirectory)
 		}
 	}
-	fmt.Println("No previous server metadata found, starting new server at mount point", *serverMountPoint)
-	return server.CreateServerWithLog(*numClients, *lenMS, *lenSalt, *serverMountPoint, *fpRate, *numUniqWords, time.Millisecond*time.Duration(*latency), *bandwidth)
+	fmt.Println("No previous server metadata found, starting new server at directory", *serverDirectory)
+	return server.CreateServerWithLog(*numClients, *lenMS, *lenSalt, *serverDirectory, *fpRate, *numUniqWords, time.Millisecond*time.Duration(*latency), *bandwidth)
 }
 
 // startClient initializes a client with `clientNum` connected to `server`.
@@ -55,7 +55,7 @@ func startClient(server *server.Server, clientNum int) *client.Client {
 		return nil
 	}
 	fmt.Println("Now running client", clientNum)
-	return client.CreateClient(server, clientNum, path.Join(*clientMountPoint, "client"+strconv.Itoa(clientNum)))
+	return client.CreateClient(server, clientNum, path.Join(*clientDirectory, "client"+strconv.Itoa(clientNum)))
 }
 
 // addFile adds `file` to `client` if `file` exists and has not already been
@@ -104,9 +104,9 @@ func main() {
 	fmt.Println()
 
 	// Initialize the client
-	if _, err := os.Stat(*clientMountPoint); os.IsNotExist(err) {
-		if os.Mkdir(*clientMountPoint, 0777) != nil {
-			fmt.Println("Failed to create the client mount point", *clientMountPoint)
+	if _, err := os.Stat(*clientDirectory); os.IsNotExist(err) {
+		if os.Mkdir(*clientDirectory, 0777) != nil {
+			fmt.Println("Failed to create the client directory", *clientDirectory)
 		}
 	}
 	client := startClient(server, *defaultClientNum)

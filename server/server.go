@@ -19,7 +19,7 @@ import (
 
 // Server contains all the necessary information for a running server.
 type Server struct {
-	mountPoint string        // Mount point of the server
+	directory string        // Mount point of the server
 	lenMS      int           // Length of the master secret in bytes
 	keyHalves  [][]byte      // The server-side keyhalves
 	salts      [][]byte      // The salts for deriving the keys for the PRFs
@@ -32,9 +32,9 @@ type Server struct {
 // CreateServer initializes a server with `numClients` clients with a master
 // secret of length `lenMS`, and generate salts with length `lenSalt`.  The
 // number of salts is given by `r = -log2(fpRate)`, where `fpRate` is the
-// desired false positive rate of the system.  `mountPoint` determines where the
+// desired false positive rate of the system.  `directory` determines where the
 // server files will be stored.
-func CreateServer(numClients, lenMS, lenSalt int, mountPoint string, fpRate float64, numUniqWords uint64) *Server {
+func CreateServer(numClients, lenMS, lenSalt int, directory string, fpRate float64, numUniqWords uint64) *Server {
 	s := new(Server)
 	masterSecret := make([]byte, lenMS)
 	rand.Read(masterSecret)
@@ -50,15 +50,15 @@ func CreateServer(numClients, lenMS, lenSalt int, mountPoint string, fpRate floa
 	s.size = uint64(math.Ceil(float64(numUniqWords) * float64(r) / math.Log(2)))
 	s.salts = util.GenerateSalts(r, lenSalt)
 	s.numFiles = 0
-	s.mountPoint = mountPoint
+	s.directory = directory
 	s.writeToFile()
 	return s
 }
 
 // CreateServerWithLog behaves the same as `CreateServer`, except for that it
 // also sets the logging parameters for the server.
-func CreateServerWithLog(numClients, lenMS, lenSalt int, mountPoint string, fpRate float64, numUniqWords uint64, latency time.Duration, bandwidth int) *Server {
-	s := CreateServer(numClients, lenMS, lenSalt, mountPoint, fpRate, numUniqWords)
+func CreateServerWithLog(numClients, lenMS, lenSalt int, directory string, fpRate float64, numUniqWords uint64, latency time.Duration, bandwidth int) *Server {
+	s := CreateServer(numClients, lenMS, lenSalt, directory, fpRate, numUniqWords)
 	s.latency = latency
 	s.bandwidth = bandwidth
 	s.writeToFile()
@@ -66,16 +66,16 @@ func CreateServerWithLog(numClients, lenMS, lenSalt int, mountPoint string, fpRa
 }
 
 // LoadServer initializes a Server by reading the metadata stored at
-// `mountPoint` and restoring the server status.
-func LoadServer(mountPoint string) *Server {
-	input, err := os.Open(path.Join(mountPoint, "serverMD"))
+// `directory` and restoring the server status.
+func LoadServer(directory string) *Server {
+	input, err := os.Open(path.Join(directory, "serverMD"))
 	if err != nil {
 		panic("Server metadata not found")
 	}
 	dec := gob.NewDecoder(input)
 
 	s := new(Server)
-	dec.Decode(&s.mountPoint)
+	dec.Decode(&s.directory)
 	dec.Decode(&s.numFiles)
 	dec.Decode(&s.salts)
 	dec.Decode(&s.keyHalves)
@@ -90,11 +90,11 @@ func LoadServer(mountPoint string) *Server {
 }
 
 // writeToFile serializes the server status and writes the metadata to a file in
-// the server mount point, which can be later loaded by `LoadServer`.
+// the server directory, which can be later loaded by `LoadServer`.
 func (s *Server) writeToFile() {
-	file, _ := os.Create(path.Join(s.mountPoint, "serverMD"))
+	file, _ := os.Create(path.Join(s.directory, "serverMD"))
 	enc := gob.NewEncoder(file)
-	enc.Encode(s.mountPoint)
+	enc.Encode(s.directory)
 	enc.Encode(s.numFiles)
 	enc.Encode(s.salts)
 	enc.Encode(s.keyHalves)
@@ -112,7 +112,7 @@ func (s *Server) writeToFile() {
 func (s *Server) AddFile(content []byte) int {
 	logger.AddTime(s.latency * 2)
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
-	output, _ := os.Create(path.Join(s.mountPoint, strconv.Itoa(s.numFiles)))
+	output, _ := os.Create(path.Join(s.directory, strconv.Itoa(s.numFiles)))
 	output.Write(content)
 	s.numFiles++
 	output.Close()
@@ -124,7 +124,7 @@ func (s *Server) AddFile(content []byte) int {
 // undefined if the docID is invalid (out of range).
 func (s *Server) GetFile(docID int) []byte {
 	logger.AddTime(s.latency * 2)
-	content, _ := ioutil.ReadFile(path.Join(s.mountPoint, strconv.Itoa(docID)))
+	content, _ := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)))
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
 	return content
 }
@@ -134,14 +134,14 @@ func (s *Server) WriteIndex(si index.SecureIndex) {
 	logger.AddTime(s.latency * 2)
 	output := si.Marshal()
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(output))*8*1000/float64(s.bandwidth)))
-	file, _ := os.Create(path.Join(s.mountPoint, strconv.Itoa(si.DocID)+".index"))
+	file, _ := os.Create(path.Join(s.directory, strconv.Itoa(si.DocID)+".index"))
 	file.Write(output)
 	file.Close()
 }
 
 // readIndex loads an index from the disk.
 func (s *Server) readIndex(docID int) index.SecureIndex {
-	input, _ := ioutil.ReadFile(path.Join(s.mountPoint, strconv.Itoa(docID)+".index"))
+	input, _ := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)+".index"))
 	si := index.Unmarshal(input)
 	return si
 }
@@ -164,7 +164,7 @@ func (s *Server) SearchWord(trapdoors [][]byte) []int {
 func (s *Server) WriteLookupTable(content []byte) {
 	logger.AddTime(s.latency * 2)
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
-	file, _ := os.Create(path.Join(s.mountPoint, "lookupTable"))
+	file, _ := os.Create(path.Join(s.directory, "lookupTable"))
 	file.Write(content)
 	file.Close()
 }
@@ -173,10 +173,10 @@ func (s *Server) WriteLookupTable(content []byte) {
 // a byte slice.  If not found, returns false as the second return value.
 func (s *Server) ReadLookupTable() ([]byte, bool) {
 	logger.AddTime(s.latency * 2)
-	if _, err := os.Stat(path.Join(s.mountPoint, "lookupTable")); os.IsNotExist(err) {
+	if _, err := os.Stat(path.Join(s.directory, "lookupTable")); os.IsNotExist(err) {
 		return []byte{}, false
 	}
-	content, _ := ioutil.ReadFile(path.Join(s.mountPoint, "lookupTable"))
+	content, _ := ioutil.ReadFile(path.Join(s.directory, "lookupTable"))
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
 	return content, true
 }
@@ -211,7 +211,7 @@ func (s *Server) GetSize() uint64 {
 // PrintServerInfo prints out the basic information of the server.
 func (s *Server) PrintServerInfo() {
 	fmt.Printf("Server ID: %.3x\n", s.keyHalves[0])
-	fmt.Println("Mount Point:", s.mountPoint)
+	fmt.Println("Mount Point:", s.directory)
 	fmt.Println("Size:", s.size)
 	fmt.Println("Number of Clients:", len(s.keyHalves))
 	fmt.Println("Length of Master Secret:", s.lenMS)

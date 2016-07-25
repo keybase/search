@@ -49,7 +49,7 @@ func createTestFile(content string) string {
 
 // TestCreateClient tests the `CreateClient` function.  Checks that multiple
 // clients created for the server should behave the same regardless of the
-// different client numbers, (except for mount point).
+// different client numbers, (except for directory).
 func TestCreateClient(t *testing.T) {
 	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
 	defer os.RemoveAll(dir)

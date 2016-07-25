@@ -18,7 +18,7 @@ import (
 
 // Client stores the necessary information for a client.
 type Client struct {
-	mountPoint    string                      // Mount point for the client where all the files are stored
+	directory    string                      // Mount point for the client where all the files are stored
 	server        *server.Server              // The server that this client is connected to
 	indexer       *indexer.SecureIndexBuilder // The indexer for the client
 	lookupTable   map[string]string           // A map from document ids to actual filenames
@@ -27,7 +27,7 @@ type Client struct {
 
 // CreateClient instantiates a client connected to Server `s` with a
 // `clientNum`.
-func CreateClient(s *server.Server, clientNum int, mountPoint string) *Client {
+func CreateClient(s *server.Server, clientNum int, directory string) *Client {
 	c := new(Client)
 
 	c.server = s
@@ -50,10 +50,10 @@ func CreateClient(s *server.Server, clientNum int, mountPoint string) *Client {
 		}
 	}
 
-	c.mountPoint = mountPoint
-	if _, err := os.Stat(mountPoint); os.IsNotExist(err) {
-		if os.Mkdir(mountPoint, 0777) != nil {
-			panic("cannot create the client mount point")
+	c.directory = directory
+	if _, err := os.Stat(directory); os.IsNotExist(err) {
+		if os.Mkdir(directory, 0777) != nil {
+			panic("cannot create the client directory")
 		}
 	}
 
@@ -83,7 +83,7 @@ func (c *Client) AddFile(filename string) bool {
 	si := c.indexer.BuildSecureIndex(docID, infile, len(content))
 	c.server.WriteIndex(si)
 
-	outfile, _ := os.Create(path.Join(c.mountPoint, file))
+	outfile, _ := os.Create(path.Join(c.directory, file))
 	defer outfile.Close()
 
 	infile.Seek(0, 0)
@@ -98,7 +98,7 @@ func (c *Client) getFile(docID int) {
 	if _, found := c.lookupTable[strconv.Itoa(docID)]; !found {
 		return
 	}
-	filename := path.Join(c.mountPoint, c.lookupTable[strconv.Itoa(docID)])
+	filename := path.Join(c.directory, c.lookupTable[strconv.Itoa(docID)])
 	// The file exists
 	if _, err := os.Stat(filename); err == nil {
 		return
@@ -117,7 +117,7 @@ func (c *Client) SearchWord(word string) []string {
 	args[1] = word
 	for index, docID := range possibleDocs {
 		c.getFile(docID)
-		args[index+2] = path.Join(c.mountPoint, c.lookupTable[strconv.Itoa(docID)])
+		args[index+2] = path.Join(c.directory, c.lookupTable[strconv.Itoa(docID)])
 	}
 	output, _ := exec.Command("grep", args...).Output()
 	filenames := strings.Split(string(output), "\x00")
