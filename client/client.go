@@ -21,7 +21,7 @@ type Client struct {
 	mountPoint    string                      // Mount point for the client where all the files are stored
 	server        *server.Server              // The server that this client is connected to
 	indexer       *indexer.SecureIndexBuilder // The indexer for the client
-	lookupTable   map[string]string           // A map from docuemnt ids to actual filenames
+	lookupTable   map[string]string           // A map from document ids to actual filenames
 	reverseLookup map[string]string           // A map from actual filenames to document ids
 }
 
