@@ -34,10 +34,10 @@ var bandwidth = flag.Int("bandwidth", 1024*1024, "the bandwidth between the serv
 
 // startServer initializes the server for the program.  It either creates a new
 // one or loads from the server metadata at the directory.
-func startServer() *server.Server {
+func startServer() (*server.Server, error) {
 	if _, err := os.Stat(path.Join(*serverDirectory, "serverMD")); err == nil {
 		fmt.Println("Server metadata found, loading server from directory", *serverDirectory)
-		return server.LoadServer(*serverDirectory)
+		return server.LoadServer(*serverDirectory), nil
 	}
 	if _, err := os.Stat(*serverDirectory); os.IsNotExist(err) {
 		if os.Mkdir(*serverDirectory, 0777) != nil {
@@ -98,7 +98,11 @@ func main() {
 	flag.Parse()
 
 	// Initialize the server
-	server := startServer()
+	server, serverErr := startServer()
+	if serverErr != nil {
+		fmt.Println("Cannot start the server")
+		return
+	}
 	fmt.Printf("\nServer Started\n--------------\n")
 	server.PrintServerInfo()
 	fmt.Println()

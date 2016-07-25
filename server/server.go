@@ -20,22 +20,23 @@ import (
 // Server contains all the necessary information for a running server.
 type Server struct {
 	directory string        // Directory of the server
-	lenMS      int           // Length of the master secret in bytes
-	keyHalves  [][]byte      // The server-side keyhalves
-	salts      [][]byte      // The salts for deriving the keys for the PRFs
-	numFiles   int           // The number of files currently stored in the server.  This is used to determine the next docID.
-	size       uint64        // The number of slots in the bloom filter index
-	latency    time.Duration // The latency between the server and the client
-	bandwidth  int           // The bandwidth of the link betweem the server and the client (in bps)
+	lenMS     int           // Length of the master secret in bytes
+	keyHalves [][]byte      // The server-side keyhalves
+	salts     [][]byte      // The salts for deriving the keys for the PRFs
+	numFiles  int           // The number of files currently stored in the server.  This is used to determine the next docID.
+	size      uint64        // The number of slots in the bloom filter index
+	latency   time.Duration // The latency between the server and the client
+	bandwidth int           // The bandwidth of the link betweem the server and the client (in bps)
 }
 
 // CreateServer initializes a server with `numClients` clients with a master
 // secret of length `lenMS`, and generate salts with length `lenSalt`.  The
 // number of salts is given by `r = -log2(fpRate)`, where `fpRate` is the
 // desired false positive rate of the system.  `directory` determines where the
-// server files will be stored.
-func CreateServer(numClients, lenMS, lenSalt int, directory string, fpRate float64, numUniqWords uint64) *Server {
-	s := new(Server)
+// server files will be stored.  Returns an error if the salt cannot be properly
+// generated.
+func CreateServer(numClients, lenMS, lenSalt int, directory string, fpRate float64, numUniqWords uint64) (s *Server, err error) {
+	s = new(Server)
 	masterSecret := make([]byte, lenMS)
 	rand.Read(masterSecret)
 	s.keyHalves = make([][]byte, numClients)
@@ -48,21 +49,24 @@ func CreateServer(numClients, lenMS, lenSalt int, directory string, fpRate float
 	}
 	r := int(math.Ceil(-math.Log2(fpRate)))
 	s.size = uint64(math.Ceil(float64(numUniqWords) * float64(r) / math.Log(2)))
-	s.salts = util.GenerateSalts(r, lenSalt)
+	s.salts, err = util.GenerateSalts(r, lenSalt)
+	if err != nil {
+		return
+	}
 	s.numFiles = 0
 	s.directory = directory
 	s.writeToFile()
-	return s
+	return
 }
 
 // CreateServerWithLog behaves the same as `CreateServer`, except for that it
 // also sets the logging parameters for the server.
-func CreateServerWithLog(numClients, lenMS, lenSalt int, directory string, fpRate float64, numUniqWords uint64, latency time.Duration, bandwidth int) *Server {
-	s := CreateServer(numClients, lenMS, lenSalt, directory, fpRate, numUniqWords)
+func CreateServerWithLog(numClients, lenMS, lenSalt int, directory string, fpRate float64, numUniqWords uint64, latency time.Duration, bandwidth int) (*Server, error) {
+	s, err := CreateServer(numClients, lenMS, lenSalt, directory, fpRate, numUniqWords)
 	s.latency = latency
 	s.bandwidth = bandwidth
 	s.writeToFile()
-	return s
+	return s, err
 }
 
 // LoadServer initializes a Server by reading the metadata stored at

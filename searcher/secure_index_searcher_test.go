@@ -17,7 +17,10 @@ func TestSearchSecureIndex(t *testing.T) {
 	numKeys := 13
 	lenSalt := 8
 	size := uint64(1900000)
-	salts := util.GenerateSalts(numKeys, lenSalt)
+	salts, saltErr := util.GenerateSalts(numKeys, lenSalt)
+	if saltErr != nil {
+		t.Fatalf("cannot generate the salts for testing")
+	}
 	sib := indexer.CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	doc, err := ioutil.TempFile("", "indexTest")
 	docContent := "This is a test file. It has a pretty random content."

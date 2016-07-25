@@ -10,7 +10,10 @@ import (
 func TestGenerateSalts(t *testing.T) {
 	numKeys := 10
 	lenSalt := 8
-	salts := GenerateSalts(numKeys, lenSalt)
+	salts, err := GenerateSalts(numKeys, lenSalt)
+	if err != nil {
+		t.Fatalf("error raised when generating salts")
+	}
 	for i := 0; i < numKeys; i++ {
 		if bytes.Equal(salts[i], make([]byte, lenSalt)) {
 			t.Fatalf("salt %d is not properly generated", i)

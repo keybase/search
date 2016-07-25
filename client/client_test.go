@@ -19,7 +19,10 @@ func createTestServer(numClients, lenMS, lenSalt int, fpRate float64, numUniqWor
 	if err != nil {
 		panic("cannot create the temporary test directory")
 	}
-	s := server.CreateServer(numClients, lenMS, lenSalt, dir, fpRate, numUniqWords)
+	s, err2 := server.CreateServer(numClients, lenMS, lenSalt, dir, fpRate, numUniqWords)
+	if err2 != nil {
+		panic("error in creating the server")
+	}
 	return s, dir
 }
 

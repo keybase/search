@@ -2,21 +2,17 @@ package util
 
 import (
 	"crypto/rand"
-	"fmt"
 	"math/big"
 )
 
-// GenerateSalts generates `numKeys` salts with length `lenSalt`.
-func GenerateSalts(numKeys, lenSalt int) (salts [][]byte) {
-	if lenSalt < 8 {
-		fmt.Println("Error in generating the salts: lenSalt must be at leat 8")
-	}
+// GenerateSalts generates `numKeys` salts with length `lenSalt`.  Returns an
+// error if the salts cannot be properly generated.
+func GenerateSalts(numKeys, lenSalt int) (salts [][]byte, err error) {
 	salts = make([][]byte, numKeys)
 	for i := 0; i < numKeys; i++ {
 		salts[i] = make([]byte, lenSalt)
-		_, err := rand.Read(salts[i])
+		_, err = rand.Read(salts[i])
 		if err != nil {
-			fmt.Println("Error in generating the salts: ", err)
 			return
 		}
 	}
