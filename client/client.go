@@ -18,7 +18,7 @@ import (
 
 // Client stores the necessary information for a client.
 type Client struct {
-	directory    string                      // Directory for the client where all the files are stored
+	directory     string                      // Directory for the client where all the files are stored
 	server        *server.Server              // The server that this client is connected to
 	indexer       *indexer.SecureIndexBuilder // The indexer for the client
 	lookupTable   map[string]string           // A map from document ids to actual filenames
@@ -27,6 +27,9 @@ type Client struct {
 
 // CreateClient instantiates a client connected to Server `s` with a
 // `clientNum`.
+// NOTE: A `Client` instance should not be saved and reused after another
+// `Client` has been used.  A new `Client` must be reconstructed after a client
+// switch to fetch the newest version of the lookup table.
 func CreateClient(s *server.Server, clientNum int, directory string) *Client {
 	c := new(Client)
 
