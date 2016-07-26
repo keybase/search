@@ -57,7 +57,7 @@ func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (b
 	words := make(map[string]bool)
 	for scanner.Scan() {
 		word := scanner.Text()
-		if _, found := words[word]; found {
+		if words[word] {
 			continue
 		}
 		words[word] = true
