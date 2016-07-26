@@ -93,7 +93,7 @@ func (c *Client) AddFile(filename string) error {
 
 	infile, err := os.Open(filename)
 	if err != nil {
-		return errInfile
+		return err
 	}
 	defer infile.Close()
 	si := c.indexer.BuildSecureIndex(docID, infile, len(content))
@@ -115,30 +115,40 @@ func (c *Client) AddFile(filename string) error {
 
 // getFile fetches the file with `docID`, if that file cannot be found on the
 // local disk.
-func (c *Client) getFile(docID int) {
+func (c *Client) getFile(docID int) error {
 	// The docID is invalid
 	if _, found := c.lookupTable[strconv.Itoa(docID)]; !found {
-		return
+		return errors.New("invalid document ID")
 	}
 	filename := path.Join(c.directory, c.lookupTable[strconv.Itoa(docID)])
 	// The file exists
 	if _, err := os.Stat(filename); err == nil {
-		return
+		return nil
 	}
-	content, _ := c.server.GetFile(docID)
-	outfile, _ := os.Create(filename)
+	content, err := c.server.GetFile(docID)
+	if err != nil {
+		return err
+	}
+	outfile, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
 	outfile.Write(content)
+	return nil
 }
 
 // SearchWord searches for a word in all the documents and returns the names of
 // all the documents containing that word as a string slice.
-func (c *Client) SearchWord(word string) []string {
+func (c *Client) SearchWord(word string) ([]string, error) {
 	possibleDocs := c.server.SearchWord(c.indexer.ComputeTrapdoors(word))
 	args := make([]string, len(possibleDocs)+2)
 	args[0] = "-lZ"
 	args[1] = word
 	for index, docID := range possibleDocs {
-		c.getFile(docID)
+		err := c.getFile(docID)
+		if err != nil {
+			return nil, err
+		}
 		args[index+2] = path.Join(c.directory, c.lookupTable[strconv.Itoa(docID)])
 	}
 	output, _ := exec.Command("grep", args...).Output()
@@ -147,7 +157,7 @@ func (c *Client) SearchWord(word string) []string {
 	for i := range filenames {
 		_, filenames[i] = path.Split(filenames[i])
 	}
-	return filenames
+	return filenames, nil
 }
 
 // GetFilenames returns all the filenames currently stored on the server as a

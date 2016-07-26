@@ -149,7 +149,11 @@ func TestGetFile(t *testing.T) {
 		t.Fatalf("file already exist before getFile is called")
 	}
 
-	c2.getFile(0)
+	err := c2.getFile(0)
+
+	if err != nil {
+		t.Fatalf("error when getting the file: %s", err)
+	}
 
 	contentRead, err := ioutil.ReadFile(path.Join(cliDir2, filename))
 	if err != nil || !bytes.Equal(contentRead, []byte(content)) {
@@ -187,20 +191,29 @@ func TestSearchWord(t *testing.T) {
 
 	expected := []string{filenames[1], filenames[3]}
 	sort.Strings(expected)
-	actual := c2.SearchWord("another")
+	actual, err := c2.SearchWord("another")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
 	sort.Strings(actual)
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("incorrect search result")
 	}
 
-	empty := c2.SearchWord("non-existing")
+	empty, err := c2.SearchWord("non-existing")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
 	if len(empty) > 0 {
 		t.Fatalf("filenames found for non-existing word")
 	}
 
 	expected = filenames
 	sort.Strings(expected)
-	actual = c2.SearchWord("file")
+	actual, err = c2.SearchWord("file")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
 	sort.Strings(actual)
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("incorrect search result")
