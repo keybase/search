@@ -146,7 +146,7 @@ func (s *Server) WriteIndex(si index.SecureIndex) error {
 	logger.AddTime(s.latency * 2)
 	output, err := si.MarshalBinary()
 	if err != nil {
-		return errMarshal
+		return err
 	}
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(output))*8*1000/float64(s.bandwidth)))
 	file, err := os.Create(path.Join(s.directory, strconv.Itoa(si.DocID)+".index"))
@@ -162,7 +162,7 @@ func (s *Server) WriteIndex(si index.SecureIndex) error {
 func (s *Server) readIndex(docID int) (si index.SecureIndex, err error) {
 	input, err := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)+".index"))
 	if err != nil {
-		err = errInput
+		err = err
 		return
 	}
 	err = si.UnmarshalBinary(input)
