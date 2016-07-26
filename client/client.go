@@ -138,8 +138,9 @@ func (c *Client) getFile(docID int) error {
 }
 
 // SearchWord searches for a word in all the documents and returns the names of
-// all the documents containing that word as a string slice.
-func (c *Client) SearchWord(word string) ([]string, error) {
+// all the documents containing that word as a string slice, as well as the
+// false positive rate when searching this word.
+func (c *Client) SearchWord(word string) ([]string, float64, error) {
 	possibleDocs := c.server.SearchWord(c.indexer.ComputeTrapdoors(word))
 	args := make([]string, len(possibleDocs)+2)
 	args[0] = "-lZ"
@@ -147,7 +148,7 @@ func (c *Client) SearchWord(word string) ([]string, error) {
 	for index, docID := range possibleDocs {
 		err := c.getFile(docID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		args[index+2] = path.Join(c.directory, c.lookupTable[strconv.Itoa(docID)])
 	}
@@ -157,7 +158,7 @@ func (c *Client) SearchWord(word string) ([]string, error) {
 	for i := range filenames {
 		_, filenames[i] = path.Split(filenames[i])
 	}
-	return filenames, nil
+	return filenames, float64(len(possibleDocs)-len(filenames)) / float64(len(c.lookupTable)-len(filenames)), nil
 }
 
 // GetFilenames returns all the filenames currently stored on the server as a

@@ -191,7 +191,7 @@ func TestSearchWord(t *testing.T) {
 
 	expected := []string{filenames[1], filenames[3]}
 	sort.Strings(expected)
-	actual, err := c2.SearchWord("another")
+	actual, _, err := c2.SearchWord("another")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
@@ -200,7 +200,7 @@ func TestSearchWord(t *testing.T) {
 		t.Fatalf("incorrect search result")
 	}
 
-	empty, err := c2.SearchWord("non-existing")
+	empty, _, err := c2.SearchWord("non-existing")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
@@ -210,7 +210,7 @@ func TestSearchWord(t *testing.T) {
 
 	expected = filenames
 	sort.Strings(expected)
-	actual, err = c2.SearchWord("file")
+	actual, _, err = c2.SearchWord("file")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
