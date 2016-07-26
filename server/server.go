@@ -113,34 +113,40 @@ func (s *Server) writeToFile() {
 // AddFile adds a file with `content` to the server with the document ID equal
 // to the number of files currently in the server and updates the count.
 // Returns the document ID.
-func (s *Server) AddFile(content []byte) int {
+func (s *Server) AddFile(content []byte) (int, error) {
 	logger.AddTime(s.latency * 2)
 	// The `*1.5` is included to account for the possible increase in file length
 	// after excryption.
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
-	output, _ := os.Create(path.Join(s.directory, strconv.Itoa(s.numFiles)))
+	output, err := os.Create(path.Join(s.directory, strconv.Itoa(s.numFiles)))
+	if err != nil {
+		return 0, err
+	}
 	output.Write(content)
 	s.numFiles++
 	output.Close()
 	s.writeToFile()
-	return s.numFiles - 1
+	return s.numFiles - 1, nil
 }
 
 // GetFile returns the content of the document with `docID`.  Behavior is
 // undefined if the docID is invalid (out of range).
-func (s *Server) GetFile(docID int) []byte {
+func (s *Server) GetFile(docID int) ([]byte, error) {
 	logger.AddTime(s.latency * 2)
-	content, _ := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)))
+	content, err := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)))
+	if err != nil {
+		return nil, err
+	}
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(content))*1.5*8*1000/float64(s.bandwidth)))
-	return content
+	return content, nil
 }
 
 // WriteIndex writes a SecureIndex to the disk of the server.
 func (s *Server) WriteIndex(si index.SecureIndex) error {
 	logger.AddTime(s.latency * 2)
-	output, errMarshal := si.MarshalBinary()
-	if errMarshal != nil {
-		return errMarshal
+	output, err := si.MarshalBinary()
+	if err != nil {
+		return err
 	}
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(output))*8*1000/float64(s.bandwidth)))
 	file, err := os.Create(path.Join(s.directory, strconv.Itoa(si.DocID)+".index"))
@@ -154,7 +160,10 @@ func (s *Server) WriteIndex(si index.SecureIndex) error {
 
 // readIndex loads an index from the disk.
 func (s *Server) readIndex(docID int) (si index.SecureIndex, err error) {
-	input, _ := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)+".index"))
+	input, err := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)+".index"))
+	if err != nil {
+		return
+	}
 	err = si.UnmarshalBinary(input)
 	return
 }

@@ -95,13 +95,16 @@ func TestAddAndGetFile(t *testing.T) {
 		[]byte("Now the third.")}
 
 	for i := 0; i < 3; i++ {
-		if s.AddFile(files[i]) != i {
-			t.Fatalf("incorrect number of files returned")
+		if docID, err := s.AddFile(files[i]); docID != i || err != nil {
+			t.Fatalf("error when adding files: %s", err)
 		}
 	}
 
 	for i := 0; i < 3; i++ {
-		content := s.GetFile(i)
+		content, err := s.GetFile(i)
+		if err != nil {
+			t.Fatalf("error when getting the files: %s", err)
+		}
 		if !bytes.Equal(content, files[i]) {
 			t.Fatalf("content in the file does not match")
 		}
@@ -139,11 +142,11 @@ func TestWriteAndReadIndex(t *testing.T) {
 	si := buildIndexForFile(sib, "This is a random test file.", 0)
 
 	if err := s.WriteIndex(si); err != nil {
-		t.Fatalf("Error when writing the index")
+		t.Fatalf("Error when writing the index: %s", err)
 	}
 	si2, err := s.readIndex(0)
 	if err != nil {
-		t.Fatalf("Error when reading the index")
+		t.Fatalf("Error when reading the index: %s", err)
 	}
 
 	// Check that the indexes are the same
