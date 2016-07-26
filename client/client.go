@@ -77,9 +77,9 @@ func (c *Client) AddFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	docID, errAddFile := c.server.AddFile(content)
-	if errAddFile != nil {
-		return errAddFile
+	docID, err := c.server.AddFile(content)
+	if err != nil {
+		return err
 	}
 	c.lookupTable[strconv.Itoa(docID)] = file
 	c.reverseLookup[file] = strconv.Itoa(docID)
@@ -102,9 +102,9 @@ func (c *Client) AddFile(filename string) error {
 		return err
 	}
 
-	outfile, errOut := os.Create(path.Join(c.directory, file))
-	if errOut != nil {
-		return errOut
+	outfile, err := os.Create(path.Join(c.directory, file))
+	if err != nil {
+		return err
 	}
 	defer outfile.Close()
 

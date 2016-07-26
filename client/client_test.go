@@ -113,7 +113,7 @@ func TestAddFile(t *testing.T) {
 	}
 
 	if actual, err := s.GetFile(0); err != nil || !bytes.Equal(actual, []byte(content)) {
-		t.Fatalf("file not written correctly to the server")
+		t.Fatalf("file not written correctly to the server: %s", err)
 	}
 
 	if !reflect.DeepEqual(s.SearchWord(c.indexer.ComputeTrapdoors("simple")), []int{0}) {

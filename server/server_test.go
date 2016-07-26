@@ -96,14 +96,14 @@ func TestAddAndGetFile(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		if docID, err := s.AddFile(files[i]); docID != i || err != nil {
-			t.Fatalf("error when adding files")
+			t.Fatalf("error when adding files: %s", err)
 		}
 	}
 
 	for i := 0; i < 3; i++ {
 		content, err := s.GetFile(i)
 		if err != nil {
-			t.Fatalf("error when getting the files")
+			t.Fatalf("error when getting the files: %s", err)
 		}
 		if !bytes.Equal(content, files[i]) {
 			t.Fatalf("content in the file does not match")
