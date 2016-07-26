@@ -155,13 +155,14 @@ func main() {
 			}
 			for i := 1; i < len(tokens); i++ {
 				fmt.Printf("Search result for %s:\n", tokens[i])
-				filenames := client.SearchWord(tokens[i])
+				filenames, fpRate := client.SearchWord(tokens[i])
 				if len(filenames) == 0 {
 					fmt.Printf("\tNo file contains the word \"%s\"\n", tokens[i])
 				}
 				for _, filename := range filenames {
 					fmt.Printf("\t%s\n", filename)
 				}
+				fmt.Printf("False Positive Rate: %f%%\n", fpRate*100)
 			}
 		case "add", "a":
 			if client == nil {

@@ -184,20 +184,20 @@ func TestSearchWord(t *testing.T) {
 
 	expected := []string{filenames[1], filenames[3]}
 	sort.Strings(expected)
-	actual := c2.SearchWord("another")
+	actual, _ := c2.SearchWord("another")
 	sort.Strings(actual)
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("incorrect search result")
 	}
 
-	empty := c2.SearchWord("non-existing")
+	empty, _ := c2.SearchWord("non-existing")
 	if len(empty) > 0 {
 		t.Fatalf("filenames found for non-existing word")
 	}
 
 	expected = filenames
 	sort.Strings(expected)
-	actual = c2.SearchWord("file")
+	actual, _ = c2.SearchWord("file")
 	sort.Strings(actual)
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("incorrect search result")
