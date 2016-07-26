@@ -143,7 +143,7 @@ func (c *Client) getFile(docID int) error {
 func (c *Client) SearchWord(word string) ([]string, float64, error) {
 	possibleDocs := c.server.SearchWord(c.indexer.ComputeTrapdoors(word))
 	args := make([]string, len(possibleDocs)+2)
-	args[0] = "-lZ"
+	args[0] = "-lZw"
 	args[1] = word
 	for index, docID := range possibleDocs {
 		err := c.getFile(docID)
