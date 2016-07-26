@@ -57,6 +57,9 @@ func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (b
 	words := make(map[string]bool)
 	for scanner.Scan() {
 		word := scanner.Text()
+		if words[word] {
+			continue
+		}
 		words[word] = true
 		trapdoors := sib.trapdoorFunc(word)
 		for _, trapdoor := range trapdoors {
