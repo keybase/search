@@ -159,7 +159,14 @@ func main() {
 			}
 			for i := 1; i < len(tokens); i++ {
 				fmt.Printf("Search result for %s:\n", tokens[i])
+				logger.Start("Normal Search")
 				filenames, fpRate, err := client.SearchWord(tokens[i])
+				logger.Log("Normal Search")
+
+				logger.Start("Naive Search")
+				client.SearchWordNaive(tokens[i])
+				logger.Log("Naive Search")
+
 				if err != nil {
 					fmt.Printf("\tError when searching word: %s\n", err)
 				}
