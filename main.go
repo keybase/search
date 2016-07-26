@@ -159,7 +159,10 @@ func main() {
 			}
 			for i := 1; i < len(tokens); i++ {
 				fmt.Printf("Search result for %s:\n", tokens[i])
-				filenames := client.SearchWord(tokens[i])
+				filenames, err := client.SearchWord(tokens[i])
+				if err != nil {
+					fmt.Printf("\tError when searching word: %s\n", err)
+				}
 				if len(filenames) == 0 {
 					fmt.Printf("\tNo file contains the word \"%s\"\n", tokens[i])
 				}
