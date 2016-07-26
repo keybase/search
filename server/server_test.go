@@ -142,11 +142,11 @@ func TestWriteAndReadIndex(t *testing.T) {
 	si := buildIndexForFile(sib, "This is a random test file.", 0)
 
 	if err := s.WriteIndex(si); err != nil {
-		t.Fatalf("Error when writing the index")
+		t.Fatalf("Error when writing the index: %s", err)
 	}
 	si2, err := s.readIndex(0)
 	if err != nil {
-		t.Fatalf("Error when reading the index")
+		t.Fatalf("Error when reading the index: %s", err)
 	}
 
 	// Check that the indexes are the same
