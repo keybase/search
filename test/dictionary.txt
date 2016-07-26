@@ -1,3 +1,5 @@
+# This dictionary file is from the course material of CS 106B at Stanford
+# University.  The author of this file is a mystery.
 aa
 aah
 aahed
