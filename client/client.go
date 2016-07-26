@@ -85,14 +85,14 @@ func (c *Client) AddFile(filename string) error {
 	c.reverseLookup[file] = strconv.Itoa(docID)
 	// Write the lookup table to the server
 	// NOTE: Factor out and add encryption
-	table, errJson := json.Marshal(c.lookupTable)
-	if errJson != nil {
+	table, err := json.Marshal(c.lookupTable)
+	if err != nil {
 		return err
 	}
 	c.server.WriteLookupTable(table)
 
-	infile, errInfile := os.Open(filename)
-	if errInfile != nil {
+	infile, err := os.Open(filename)
+	if err != nil {
 		return errInfile
 	}
 	defer infile.Close()

@@ -144,8 +144,8 @@ func (s *Server) GetFile(docID int) ([]byte, error) {
 // WriteIndex writes a SecureIndex to the disk of the server.
 func (s *Server) WriteIndex(si index.SecureIndex) error {
 	logger.AddTime(s.latency * 2)
-	output, errMarshal := si.MarshalBinary()
-	if errMarshal != nil {
+	output, err := si.MarshalBinary()
+	if err != nil {
 		return errMarshal
 	}
 	logger.AddTime(time.Millisecond * time.Duration(float64(len(output))*8*1000/float64(s.bandwidth)))
@@ -160,8 +160,8 @@ func (s *Server) WriteIndex(si index.SecureIndex) error {
 
 // readIndex loads an index from the disk.
 func (s *Server) readIndex(docID int) (si index.SecureIndex, err error) {
-	input, errInput := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)+".index"))
-	if errInput != nil {
+	input, err := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)+".index"))
+	if err != nil {
 		err = errInput
 		return
 	}
