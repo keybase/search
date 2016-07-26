@@ -162,7 +162,6 @@ func (s *Server) WriteIndex(si index.SecureIndex) error {
 func (s *Server) readIndex(docID int) (si index.SecureIndex, err error) {
 	input, err := ioutil.ReadFile(path.Join(s.directory, strconv.Itoa(docID)+".index"))
 	if err != nil {
-		err = err
 		return
 	}
 	err = si.UnmarshalBinary(input)
