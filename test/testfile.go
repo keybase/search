@@ -25,7 +25,7 @@ func main() {
 	if _, err := os.Stat(*outputPath); os.IsNotExist(err) {
 		if os.Mkdir(*outputPath, 0777) != nil {
 			fmt.Println("Failed to create the output directory", *outputPath)
-			return
+			os.Exit(-1)
 		}
 	}
 
@@ -33,7 +33,7 @@ func main() {
 	dict, err := os.Open(*dictFile)
 	if err != nil {
 		fmt.Println("Failed to open the dictionary file")
-		return
+		os.Exit(-1)
 	}
 	scanner := bufio.NewScanner(dict)
 	scanner.Split(bufio.ScanWords)

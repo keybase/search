@@ -109,7 +109,8 @@ func (c *Client) getFile(docID int) {
 }
 
 // SearchWord searches for a word in all the documents and returns the names of
-// all the documents containing that word as a string slice.
+// all the documents containing that word as a string slice, as well as the
+// false positive rate when searching this word.
 func (c *Client) SearchWord(word string) ([]string, float64) {
 	possibleDocs := c.server.SearchWord(c.indexer.ComputeTrapdoors(word))
 	args := make([]string, len(possibleDocs)+2)
