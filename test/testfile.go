@@ -22,6 +22,7 @@ var outputPath = flag.String("output_path", "testFiles", "The directory where th
 // This is a little tool for creating test files with random English words.  Use
 // `go run testFile.go --help` to check the configurable parameters.
 func main() {
+	flag.Parse()
 	if _, err := os.Stat(*outputPath); os.IsNotExist(err) {
 		if os.Mkdir(*outputPath, 0777) != nil {
 			fmt.Println("Failed to create the output directory", *outputPath)

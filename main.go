@@ -88,6 +88,8 @@ func addDirectory(client *client.Client) filepath.WalkFunc {
 //			Lists all the files on the server
 //	-search/s w1 w2 w3 ...
 //			Searches the words in the server
+//	-searchn/sn w1 w2 w3 ...
+//			Searches the words in the server (naive version)
 //	-add/a f1 f2 d1 d2 ...
 //			Adds the files and directories (recursive) to the system
 //	-info/i
@@ -160,6 +162,7 @@ func main() {
 			for i := 1; i < len(tokens); i++ {
 				fmt.Printf("Search result for %s:\n", tokens[i])
 				filenames, fpRate, err := client.SearchWord(tokens[i])
+
 				if err != nil {
 					fmt.Printf("\tError when searching word: %s\n", err)
 				}
@@ -170,6 +173,29 @@ func main() {
 					fmt.Printf("\t%s\n", filename)
 				}
 				fmt.Printf("False Positive Rate: %f%%\n", fpRate*100)
+			}
+		case "searchn", "sn":
+			if client == nil {
+				fmt.Printf("%s: client not running\n", tokens[0])
+				break
+			}
+			if len(tokens) < 2 {
+				fmt.Printf("%s: search keyword missing\n", tokens[0])
+				break
+			}
+			for i := 1; i < len(tokens); i++ {
+				fmt.Printf("Search result for %s:\n", tokens[i])
+				filenames, _, err := client.SearchWordNaive(tokens[i])
+
+				if err != nil {
+					fmt.Printf("\tError when searching word: %s\n", err)
+				}
+				if len(filenames) == 0 {
+					fmt.Printf("\tNo file contains the word \"%s\"\n", tokens[i])
+				}
+				for _, filename := range filenames {
+					fmt.Printf("\t%s\n", filename)
+				}
 			}
 		case "add", "a":
 			if client == nil {

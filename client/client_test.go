@@ -218,5 +218,64 @@ func TestSearchWord(t *testing.T) {
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("incorrect search result")
 	}
+}
+
+// TestSearchWordNaive tests the `SearchWordNaive` function.  Checks that the
+// expected filenames are returned by the function.
+func TestSearchWordNaive(t *testing.T) {
+	s, dir := createTestServer(5, 8, 8, 0.000001, uint64(100000))
+	defer os.RemoveAll(dir)
+
+	c, cliDir := createTestClient(s, 0)
+	defer os.RemoveAll(cliDir)
+
+	contents := []string{
+		"This is a simple test file",
+		"This is another test file",
+		"This is a different test file",
+		"This is yet another test file",
+		"This is the last test file"}
+
+	filenames := make([]string, 5)
+
+	for i := 0; i < len(contents); i++ {
+		file := createTestFile(contents[i])
+		defer os.Remove(file)
+		_, filenames[i] = path.Split(file)
+		c.AddFile(file)
+	}
+
+	c2, cliDir2 := createTestClient(s, 1)
+	defer os.RemoveAll(cliDir2)
+
+	expected := []string{filenames[1], filenames[3]}
+	sort.Strings(expected)
+	actual, _, err := c2.SearchWordNaive("another")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
+	sort.Strings(actual)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("incorrect search result")
+	}
+
+	empty, _, err := c2.SearchWordNaive("non-existing")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
+	if len(empty) > 0 {
+		t.Fatalf("filenames found for non-existing word")
+	}
+
+	expected = filenames
+	sort.Strings(expected)
+	actual, _, err = c2.SearchWordNaive("file")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
+	sort.Strings(actual)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("incorrect search result")
+	}
 
 }
