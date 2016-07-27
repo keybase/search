@@ -164,9 +164,13 @@ func (c *Client) SearchWord(word string) ([]string, float64, error) {
 // SearchWordNaive behaves the same as `SearchWord`, except that it simply
 // downloads all the documents and performs a local search on all the documents.
 func (c *Client) SearchWordNaive(word string) ([]string, float64, error) {
-	possibleDocs := make([]int, len(c.lookupTable))
-	for i := 0; i < len(c.lookupTable); i++ {
-		possibleDocs[i] = i
+	possibleDocs := make([]int, 0, len(c.lookupTable))
+	for docID := range c.lookupTable {
+		docIDInt, err := strconv.Atoi(docID)
+		if err != nil {
+			return nil, 0, errors.New("invalid docID: not a number")
+		}
+		possibleDocs = append(possibleDocs, docIDInt)
 	}
 	args := make([]string, len(possibleDocs)+2)
 	args[0] = "-lZw"
