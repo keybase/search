@@ -137,11 +137,9 @@ func (c *Client) getFile(docID int) error {
 	return nil
 }
 
-// SearchWord searches for a word in all the documents and returns the names of
-// all the documents containing that word as a string slice, as well as the
-// false positive rate when searching this word.
-func (c *Client) SearchWord(word string) ([]string, float64, error) {
-	possibleDocs := c.server.SearchWord(c.indexer.ComputeTrapdoors(word))
+// searchWordHelper downloads all the `possibleDocs` and then performs a local
+// search of `word` on them.
+func (c *Client) searchWordHelper(word string, possibleDocs []int) ([]string, float64, error) {
 	args := make([]string, len(possibleDocs)+2)
 	args[0] = "-lZw"
 	args[1] = word
@@ -161,6 +159,14 @@ func (c *Client) SearchWord(word string) ([]string, float64, error) {
 	return filenames, float64(len(possibleDocs)-len(filenames)) / float64(len(c.lookupTable)-len(filenames)), nil
 }
 
+// SearchWord searches for a word in all the documents and returns the names of
+// all the documents containing that word as a string slice, as well as the
+// false positive rate when searching this word.
+func (c *Client) SearchWord(word string) ([]string, float64, error) {
+	possibleDocs := c.server.SearchWord(c.indexer.ComputeTrapdoors(word))
+	return c.searchWordHelper(word, possibleDocs)
+}
+
 // SearchWordNaive behaves the same as `SearchWord`, except that it simply
 // downloads all the documents and performs a local search on all the documents.
 func (c *Client) SearchWordNaive(word string) ([]string, float64, error) {
@@ -172,23 +178,7 @@ func (c *Client) SearchWordNaive(word string) ([]string, float64, error) {
 		}
 		possibleDocs = append(possibleDocs, docIDInt)
 	}
-	args := make([]string, len(possibleDocs)+2)
-	args[0] = "-lZw"
-	args[1] = word
-	for index, docID := range possibleDocs {
-		err := c.getFile(docID)
-		if err != nil {
-			return nil, 0, err
-		}
-		args[index+2] = path.Join(c.directory, c.lookupTable[strconv.Itoa(docID)])
-	}
-	output, _ := exec.Command("grep", args...).Output()
-	filenames := strings.Split(string(output), "\x00")
-	filenames = filenames[:len(filenames)-1]
-	for i := range filenames {
-		_, filenames[i] = path.Split(filenames[i])
-	}
-	return filenames, float64(len(possibleDocs)-len(filenames)) / float64(len(c.lookupTable)-len(filenames)), nil
+	return c.searchWordHelper(word, possibleDocs)
 }
 
 // GetFilenames returns all the filenames currently stored on the server as a
