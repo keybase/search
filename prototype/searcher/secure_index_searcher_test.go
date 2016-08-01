@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"io/ioutil"
 	"os"
-	"search/prototype/prototype/prototype/indexer"
-	"search/prototype/prototype/prototype/util"
+	"search/prototype/indexer"
+	"search/prototype/util"
 	"strings"
 	"testing"
 )

@@ -8,8 +8,8 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
 	"os"
-	"search/prototype/prototype/prototype/index"
-	"search/prototype/prototype/prototype/util"
+	"search/prototype/index"
+	"search/prototype/util"
 
 	"github.com/jxguan/go-datastructures/bitarray"
 )

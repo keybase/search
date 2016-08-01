@@ -7,7 +7,7 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"search/prototype/prototype/prototype/server"
+	"search/prototype/server"
 	"sort"
 	"testing"
 )

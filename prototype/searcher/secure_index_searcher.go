@@ -3,7 +3,7 @@ package searcher
 import (
 	"crypto/hmac"
 	"encoding/binary"
-	"search/prototype/prototype/prototype/index"
+	"search/prototype/index"
 )
 
 // SearchSecureIndex searches the index `secIndex` for a word with `trapdoors`,
