@@ -7,9 +7,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"search/client"
-	"search/logger"
-	"search/server"
+	"search/prototype/prototype/prototype/prototype/client"
+	"search/prototype/prototype/prototype/prototype/logger"
+	"search/prototype/prototype/prototype/prototype/server"
 	"strconv"
 	"strings"
 	"time"
@@ -86,7 +86,7 @@ func addDirectory(client *client.Client) filepath.WalkFunc {
 //			Starts running client with client number X
 //	-ls/l
 //			Lists all the files on the server
-//	-search/s w1 w2 w3 ...
+//	-search/prototype/prototype/prototype/prototype/s w1 w2 w3 ...
 //			Searches the words in the server
 //	-searchn/sn w1 w2 w3 ...
 //			Searches the words in the server (naive version)
@@ -164,7 +164,7 @@ func main() {
 				filenames, fpRate, err := client.SearchWord(tokens[i])
 
 				if err != nil {
-					fmt.Printf("\tError when searching word: %s\n", err)
+					fmt.Printf("\tError when search/prototype/ng word: %s\n", err)
 				}
 				if len(filenames) == 0 {
 					fmt.Printf("\tNo file contains the word \"%s\"\n", tokens[i])
@@ -188,7 +188,7 @@ func main() {
 				filenames, _, err := client.SearchWordNaive(tokens[i])
 
 				if err != nil {
-					fmt.Printf("\tError when searching word: %s\n", err)
+					fmt.Printf("\tError when search/prototype/ng word: %s\n", err)
 				}
 				if len(filenames) == 0 {
 					fmt.Printf("\tNo file contains the word \"%s\"\n", tokens[i])

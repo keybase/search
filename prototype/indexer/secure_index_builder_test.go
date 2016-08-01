@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"os"
-	"search/util"
+	"search/prototype/prototype/prototype/util"
 	"strings"
 	"testing"
 

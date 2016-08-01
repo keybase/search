@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"search/index"
-	"search/indexer"
-	"search/util"
+	"search/prototype/prototype/prototype/index"
+	"search/prototype/prototype/prototype/indexer"
+	"search/prototype/prototype/prototype/util"
 	"strconv"
 	"testing"
 )

@@ -2,7 +2,7 @@ package index
 
 import (
 	"crypto/sha256"
-	"search/util"
+	"search/prototype/prototype/prototype/util"
 	"testing"
 
 	"github.com/jxguan/go-datastructures/bitarray"
