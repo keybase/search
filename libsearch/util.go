@@ -21,11 +21,11 @@ func GenerateSalts(numKeys, lenSalt int) (salts [][]byte, err error) {
 
 // RandUint64n returns a random 64-bit unsigned integer in the range of [0, n).
 // Panics if n <= 0.
-func RandUint64n(n uint64) uint64 {
+func RandUint64n(n uint64) (uint64, error) {
 	i := new(big.Int)
 	i.SetUint64(n)
-	num, _ := rand.Int(rand.Reader, i)
-	return num.Uint64()
+	num, err := rand.Int(rand.Reader, i)
+	return num.Uint64(), err
 }
 
 // XorBytes performs an xor operation on the first `len` bytes of the two input

@@ -24,7 +24,10 @@ func TestGenerateSalts(t *testing.T) {
 // Checks that random numbers generated are within the range of [0, n).
 func checkRandUint64nForNum(n uint64, t *testing.T) {
 	for i := 0; i < 10000; i++ {
-		r := RandUint64n(n)
+		r, err := RandUint64n(n)
+		if err != nil {
+			t.Fatalf("error occurred in generating random uint64: %s", err)
+		}
 		if r >= n {
 			t.Fatalf("random number %d out of range [0, %d)", r, n)
 		}
