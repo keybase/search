@@ -8,9 +8,9 @@ import (
 	"github.com/jxguan/go-datastructures/bitarray"
 )
 
-// TestMarshalAndUnmarshal tests the `Marshal` and `Unmarshal` functions.
-// Checks that after a pair of `Marshal` and `Unmarshal` operations, the orignal
-// SecureIndex is correctly reconstructed from the byte slice.
+// TestMarshalAndUnmarshal tests the `MarshalBinary` and `UnmarshalBinary`
+// functions.  Checks that after a pair of Marshal and Unmarshal operations, the
+// orignal SecureIndex is correctly reconstructed from the byte slice.
 func TestMarshalAndUnmarshal(t *testing.T) {
 	si := new(SecureIndex)
 	si.BloomFilter = bitarray.NewSparseBitArray()

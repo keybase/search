@@ -52,8 +52,7 @@ func (si *SecureIndex) UnmarshalBinary(input []byte) error {
 	if err != nil {
 		return err
 	}
-	var hashLen int
-	hashLen, err = readInt(input[8:16])
+	hashLen, err := readInt(input[8:16])
 	if err != nil {
 		return err
 	} else if hashLen == 256/8 {
