@@ -2,6 +2,8 @@ package libsearch
 
 import (
 	"crypto/rand"
+	"encoding/binary"
+	"errors"
 	"math/big"
 )
 
@@ -37,4 +39,13 @@ func XorBytes(one, two []byte, len int) []byte {
 		result[i] = one[i] ^ two[i]
 	}
 	return result
+}
+
+// Reads an int from the input byte slice.
+func readInt(input []byte) (int, error) {
+	num, numBytes := binary.Varint(input)
+	if numBytes <= 0 {
+		return 0, errors.New("cannot read the int")
+	}
+	return int(num), nil
 }

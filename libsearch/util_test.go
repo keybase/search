@@ -3,6 +3,7 @@ package libsearch
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/binary"
 	"testing"
 )
 
@@ -55,5 +56,20 @@ func TestXorBytes(t *testing.T) {
 		if !bytes.Equal(XorBytes(one, result, 64), two) {
 			t.Fatalf("xor'ing twice does not give back the orignal array")
 		}
+	}
+}
+
+// TestReadInt tests the `readInt` function.  Checks that the correct integer is
+// read.
+func TestReadInt(t *testing.T) {
+	expected := 42
+	byteSlice := make([]byte, 8)
+	binary.PutVarint(byteSlice, int64(expected))
+	actual, err := readInt(byteSlice)
+	if err != nil {
+		t.Fatalf("error when reading the interger: %s", err)
+	}
+	if expected != actual {
+		t.Fatalf("readInt does not yield the original integer")
 	}
 }

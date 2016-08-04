@@ -33,15 +33,6 @@ func (si *SecureIndex) MarshalBinary() ([]byte, error) {
 	return result, nil
 }
 
-// Reads an int from the input byte slice.
-func readInt(input []byte) (int, error) {
-	num, numBytes := binary.Varint(input)
-	if numBytes <= 0 {
-		return 0, errors.New("cannot read the int")
-	}
-	return int(num), nil
-}
-
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
 func (si *SecureIndex) UnmarshalBinary(input []byte) error {
 	if len(input) < 24 {
