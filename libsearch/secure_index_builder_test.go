@@ -202,9 +202,6 @@ func TestBuildSecureIndex(t *testing.T) {
 	if index1.BloomFilter.Equals(index3.BloomFilter) {
 		t.Fatalf("the same document with different ids produces the same bloom filter")
 	}
-	if index1.DocID != docID || index3.DocID != docID+1 {
-		t.Fatalf("the document ID in the index is not set up correctly")
-	}
 	if index1.Size != size {
 		t.Fatalf("the size in the index is not set up correctly")
 	}

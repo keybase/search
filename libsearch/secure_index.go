@@ -13,7 +13,6 @@ import (
 // SecureIndex defines the elements in a secure index.
 type SecureIndex struct {
 	BloomFilter bitarray.BitArray // The blinded bloom filter, which is the main part of the index.
-	DocID       int               // The document ID that this index is for.
 	Size        uint64            // The number of buckets in the bloom filter.
 	Hash        func() hash.Hash  // The hash function to be used for HMAC.
 }
@@ -24,12 +23,11 @@ func (si *SecureIndex) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	length := 24 + len(bfBytes)
+	length := 16 + len(bfBytes)
 	result := make([]byte, length)
-	binary.PutVarint(result, int64(si.DocID))
-	binary.PutVarint(result[8:], int64(si.Hash().Size()))
-	binary.PutUvarint(result[16:], si.Size)
-	copy(result[24:], bfBytes)
+	binary.PutVarint(result[0:], int64(si.Hash().Size()))
+	binary.PutUvarint(result[8:], si.Size)
+	copy(result[16:], bfBytes)
 	return result, nil
 }
 
@@ -39,20 +37,18 @@ func (si *SecureIndex) UnmarshalBinary(input []byte) error {
 		return errors.New("insufficient binary length")
 	}
 	var err error
-	si.DocID, err = readInt(input[0:8])
-	if err != nil {
-		return err
-	}
-	hashLen, err := readInt(input[8:16])
+	hashLen, err := readInt(input[0:8])
 	if err != nil {
 		return err
 	} else if hashLen == 256/8 {
 		si.Hash = sha256.New
 	} else if hashLen == 512/8 {
 		si.Hash = sha512.New
+	} else {
+		return errors.New("invalid hash function length")
 	}
-	si.Size, _ = binary.Uvarint(input[16:24])
-	si.BloomFilter, err = bitarray.Unmarshal(input[24:])
+	si.Size, _ = binary.Uvarint(input[8:16])
+	si.BloomFilter, err = bitarray.Unmarshal(input[16:])
 	if err != nil {
 		return err
 	}

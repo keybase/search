@@ -88,7 +88,7 @@ func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterati
 func (sib *SecureIndexBuilder) BuildSecureIndex(docID int, document *os.File, fileLen int) (SecureIndex, error) {
 	bf, numUniqWords := sib.buildBloomFilter(docID, document)
 	err := sib.blindBloomFilter(bf, (fileLen-numUniqWords)*len(sib.keys))
-	return SecureIndex{BloomFilter: bf, DocID: docID, Size: sib.size, Hash: sib.hash}, err
+	return SecureIndex{BloomFilter: bf, Size: sib.size, Hash: sib.hash}, err
 }
 
 // ComputeTrapdoors computes the trapdoor values for `word`.  This acts as the
