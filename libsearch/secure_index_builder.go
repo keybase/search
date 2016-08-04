@@ -48,7 +48,7 @@ func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][
 // bit array and the number of unique words in the document.  The result should
 // not be directly used as the index, as obfuscation need to be added to the
 // bloom filter.
-func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (bitarray.BitArray, int) {
+func (sib *SecureIndexBuilder) buildBloomFilter(docID string, document *os.File) (bitarray.BitArray, int) {
 	scanner := bufio.NewScanner(document)
 	scanner.Split(bufio.ScanWords)
 	bf := bitarray.NewSparseBitArray()
@@ -62,7 +62,7 @@ func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (b
 		trapdoors := sib.trapdoorFunc(word)
 		for _, trapdoor := range trapdoors {
 			mac := hmac.New(sib.hash, trapdoor)
-			mac.Write([]byte(string(docID)))
+			mac.Write([]byte(docID))
 			codeword, _ := binary.Uvarint(mac.Sum(nil))
 			bf.SetBit(codeword % sib.size)
 		}
@@ -85,7 +85,7 @@ func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterati
 
 // BuildSecureIndex builds the index for `document` with `docID` and an
 // *encrypted* length of `fileLen`.
-func (sib *SecureIndexBuilder) BuildSecureIndex(docID int, document *os.File, fileLen int) (SecureIndex, error) {
+func (sib *SecureIndexBuilder) BuildSecureIndex(docID string, document *os.File, fileLen int) (SecureIndex, error) {
 	bf, numUniqWords := sib.buildBloomFilter(docID, document)
 	err := sib.blindBloomFilter(bf, (fileLen-numUniqWords)*len(sib.keys))
 	return SecureIndex{BloomFilter: bf, Size: sib.size, Hash: sib.hash}, err

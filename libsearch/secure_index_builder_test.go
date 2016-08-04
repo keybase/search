@@ -58,11 +58,11 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 }
 
 // Helper function that checks if a word is contained in the bloom filter.
-func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, docID int, word string) bool {
+func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, docID string, word string) bool {
 	trapdoors := sib.trapdoorFunc(word)
 	for _, trapdoor := range trapdoors {
 		mac := hmac.New(sib.hash, trapdoor)
-		mac.Write([]byte(string(docID)))
+		mac.Write([]byte(docID))
 		// Ignore the error as we need to truncate the 256-bit hash into 64 bits
 		codeword, _ := binary.Uvarint(mac.Sum(nil))
 		if bit, _ := bf.GetBit(codeword % sib.size); !bit {
@@ -87,7 +87,7 @@ func TestBuildBloomFilter(t *testing.T) {
 	doc, err := ioutil.TempFile("", "bfTest")
 	docContent := "This is a test file. It has a pretty random content."
 	docWords := strings.Split(docContent, " ")
-	docID := 42
+	docID := "42"
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestBuildBloomFilter`")
 	}
@@ -109,7 +109,7 @@ func TestBuildBloomFilter(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf3, _ := sib.buildBloomFilter(docID+1, doc)
+	bf3, _ := sib.buildBloomFilter("43", doc)
 	if !bf1.Equals(bf2) {
 		t.Fatalf("the two bloom filters are different.  `buildBloomFilter` is likely non-deterministic")
 	}
@@ -164,7 +164,7 @@ func TestBuildSecureIndex(t *testing.T) {
 	doc, err := ioutil.TempFile("", "indexTest")
 	docContent := "This is a test file. It has a pretty random content."
 	docWords := strings.Split(docContent, " ")
-	docID := 42
+	docID := "42"
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestBuildSecureIndex`")
 	}
@@ -192,7 +192,7 @@ func TestBuildSecureIndex(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	index3, err := sib.BuildSecureIndex(docID+1, doc, len(docContent))
+	index3, err := sib.BuildSecureIndex("43", doc, len(docContent))
 	if err != nil {
 		t.Fatalf("error when building the secure index: %s", err)
 	}
