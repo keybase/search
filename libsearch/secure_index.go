@@ -13,8 +13,9 @@ import (
 // SecureIndex defines the elements in a secure index.
 type SecureIndex struct {
 	BloomFilter bitarray.BitArray // The blinded bloom filter, which is the main part of the index.
-	Size        uint64            // The number of buckets in the bloom filter.
-	Hash        func() hash.Hash  // The hash function to be used for HMAC.
+	Nonce       uint64
+	Size        uint64           // The number of buckets in the bloom filter.
+	Hash        func() hash.Hash // The hash function to be used for HMAC.
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -23,17 +24,18 @@ func (si *SecureIndex) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	length := 16 + len(bfBytes)
+	length := 24 + len(bfBytes)
 	result := make([]byte, length)
 	binary.PutVarint(result[0:], int64(si.Hash().Size()))
-	binary.PutUvarint(result[8:], si.Size)
-	copy(result[16:], bfBytes)
+	binary.PutUvarint(result[8:], si.Nonce)
+	binary.PutUvarint(result[16:], si.Size)
+	copy(result[24:], bfBytes)
 	return result, nil
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
 func (si *SecureIndex) UnmarshalBinary(input []byte) error {
-	if len(input) < 16 {
+	if len(input) < 24 {
 		return errors.New("insufficient binary length")
 	}
 	var err error
@@ -47,8 +49,9 @@ func (si *SecureIndex) UnmarshalBinary(input []byte) error {
 	} else {
 		return errors.New("invalid hash function length")
 	}
-	si.Size, _ = binary.Uvarint(input[8:16])
-	si.BloomFilter, err = bitarray.Unmarshal(input[16:])
+	si.Nonce, _ = binary.Uvarint(input[8:16])
+	si.Size, _ = binary.Uvarint(input[16:24])
+	si.BloomFilter, err = bitarray.Unmarshal(input[24:])
 	if err != nil {
 		return err
 	}

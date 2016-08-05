@@ -21,6 +21,7 @@ func TestMarshalAndUnmarshal(t *testing.T) {
 		si.BloomFilter.SetBit(randUint64)
 	}
 	si.Size = uint64(1900000)
+	si.Nonce = 42
 	si.Hash = sha256.New
 	bytes, err1 := si.MarshalBinary()
 	if err1 != nil {
@@ -33,6 +34,9 @@ func TestMarshalAndUnmarshal(t *testing.T) {
 	}
 	if si2.Hash().Size() != si.Hash().Size() {
 		t.Fatalf("Hash does not match")
+	}
+	if si2.Nonce != si.Nonce {
+		t.Fatalf("Nonce does not match")
 	}
 	if si2.Size != si.Size {
 		t.Fatalf("Size does not match")
