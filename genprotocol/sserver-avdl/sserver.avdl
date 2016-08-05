@@ -1,4 +1,4 @@
-@namespace("sserver")
+@namespace("searchsrv.1")
 protocol searchServer {
   void writeIndex(bytes secureIndex, string docID);
   void renameIndex(string orig, string curr);

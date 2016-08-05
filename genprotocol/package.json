@@ -1,5 +1,5 @@
 {
-  "name": "sserver-protocol",
+  "name": "searchsrv-protocol",
   "version": "1.0.0",
   "description": "An IDL and protocol generator for KBFS search server",
   "scripts": {
