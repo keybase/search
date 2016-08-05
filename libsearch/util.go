@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"math"
 	"math/big"
 )
 
@@ -26,6 +27,15 @@ func GenerateSalts(numKeys, lenSalt int) (salts [][]byte, err error) {
 func RandUint64n(n uint64) (uint64, error) {
 	i := new(big.Int)
 	i.SetUint64(n)
+	num, err := rand.Int(rand.Reader, i)
+	return num.Uint64(), err
+}
+
+// RandUint64 returns a random 64-bit unsigned integer.
+func RandUint64() (uint64, error) {
+	i := new(big.Int)
+	i.SetUint64(math.MaxUint64)
+	i.Add(big.NewInt(1), i)
 	num, err := rand.Int(rand.Reader, i)
 	return num.Uint64(), err
 }

@@ -35,13 +35,23 @@ func checkRandUint64nForNum(n uint64, t *testing.T) {
 	}
 }
 
-// Tests the `randUint64n` function.  Checks that the random uint64's generated
+// Tests the `RandUint64n` function.  Checks that the random uint64's generated
 // are within the ranges.
 func TestRandUint64n(t *testing.T) {
 	checkRandUint64nForNum(uint64(42), t)
 	checkRandUint64nForNum(uint64(123456789), t)
 	checkRandUint64nForNum(uint64(1), t)
 	checkRandUint64nForNum(^uint64(0), t)
+}
+
+// Tests the `RandUint64` function.  Checks that no errors are produced.
+func TestRandUint64(t *testing.T) {
+	for i := 0; i < 10000; i++ {
+		r, err := RandUint64()
+		if err != nil {
+			t.Fatalf("error occurred in generating random uint64: %s", err)
+		}
+	}
 }
 
 // Tests the `XorBytes` function.  Checks that after xor'ing with the same bytes
