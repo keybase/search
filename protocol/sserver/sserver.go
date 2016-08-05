@@ -8,9 +8,10 @@ import (
 	context "golang.org/x/net/context"
 )
 
+type DocumentID string
 type WriteIndexArg struct {
-	SecureIndex []byte `codec:"secureIndex" json:"secureIndex"`
-	DocID       string `codec:"docID" json:"docID"`
+	SecureIndex []byte     `codec:"secureIndex" json:"secureIndex"`
+	DocID       DocumentID `codec:"docID" json:"docID"`
 }
 
 type RenameIndexArg struct {
