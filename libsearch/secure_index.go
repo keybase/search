@@ -33,7 +33,7 @@ func (si *SecureIndex) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
 func (si *SecureIndex) UnmarshalBinary(input []byte) error {
-	if len(input) < 24 {
+	if len(input) < 16 {
 		return errors.New("insufficient binary length")
 	}
 	var err error
