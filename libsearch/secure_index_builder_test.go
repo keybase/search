@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
@@ -58,11 +59,11 @@ func TestCreateSecureIndexBuilder(t *testing.T) {
 }
 
 // Helper function that checks if a word is contained in the bloom filter.
-func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, docID string, word string) bool {
+func bfContainsWord(bf bitarray.BitArray, sib *SecureIndexBuilder, nonce uint64, word string) bool {
 	trapdoors := sib.trapdoorFunc(word)
 	for _, trapdoor := range trapdoors {
 		mac := hmac.New(sib.hash, trapdoor)
-		mac.Write([]byte(docID))
+		mac.Write(big.NewInt(int64(nonce)).Bytes())
 		// Ignore the error as we need to truncate the 256-bit hash into 64 bits
 		codeword, _ := binary.Uvarint(mac.Sum(nil))
 		if bit, _ := bf.GetBit(codeword % sib.size); !bit {
@@ -87,7 +88,7 @@ func TestBuildBloomFilter(t *testing.T) {
 	doc, err := ioutil.TempFile("", "bfTest")
 	docContent := "This is a test file. It has a pretty random content."
 	docWords := strings.Split(docContent, " ")
-	docID := "42"
+	nonce := uint64(42)
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestBuildBloomFilter`")
 	}
@@ -99,17 +100,17 @@ func TestBuildBloomFilter(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf1, count := sib.buildBloomFilter(docID, doc)
+	bf1, count := sib.buildBloomFilter(nonce, doc)
 	// Rewinds the file again
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf2, _ := sib.buildBloomFilter(docID, doc)
+	bf2, _ := sib.buildBloomFilter(nonce, doc)
 	// Rewinds the file yet again
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildBloomFilter")
 	}
-	bf3, _ := sib.buildBloomFilter("43", doc)
+	bf3, _ := sib.buildBloomFilter(nonce+1, doc)
 	if !bf1.Equals(bf2) {
 		t.Fatalf("the two bloom filters are different.  `buildBloomFilter` is likely non-deterministic")
 	}
@@ -120,7 +121,7 @@ func TestBuildBloomFilter(t *testing.T) {
 		t.Fatalf("the number of unique words is not correct")
 	}
 	for _, word := range docWords {
-		if !bfContainsWord(bf1, sib, docID, word) {
+		if !bfContainsWord(bf1, sib, nonce, word) {
 			t.Fatalf("one or more of the words is not present in the bloom filter")
 		}
 	}
@@ -164,7 +165,6 @@ func TestBuildSecureIndex(t *testing.T) {
 	doc, err := ioutil.TempFile("", "indexTest")
 	docContent := "This is a test file. It has a pretty random content."
 	docWords := strings.Split(docContent, " ")
-	docID := "42"
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestBuildSecureIndex`")
 	}
@@ -176,7 +176,7 @@ func TestBuildSecureIndex(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	index1, err := sib.BuildSecureIndex(docID, doc, len(docContent))
+	index1, err := sib.BuildSecureIndex(doc, len(docContent))
 	if err != nil {
 		t.Fatalf("error when building the secure index: %s", err)
 	}
@@ -184,7 +184,7 @@ func TestBuildSecureIndex(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	index2, err := sib.BuildSecureIndex(docID, doc, len(docContent))
+	index2, err := sib.BuildSecureIndex(doc, len(docContent))
 	if err != nil {
 		t.Fatalf("error when building the secure index: %s", err)
 	}
@@ -192,21 +192,14 @@ func TestBuildSecureIndex(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	index3, err := sib.BuildSecureIndex("43", doc, len(docContent))
-	if err != nil {
-		t.Fatalf("error when building the secure index: %s", err)
-	}
 	if index1.BloomFilter.Equals(index2.BloomFilter) {
-		t.Fatalf("the two indexes for the same document are the same.  They are not likely blinded")
-	}
-	if index1.BloomFilter.Equals(index3.BloomFilter) {
-		t.Fatalf("the same document with different ids produces the same bloom filter")
+		t.Fatalf("the two indexes for the same document are the same.  They are not likely blinded and nonce is not properly used")
 	}
 	if index1.Size != size {
 		t.Fatalf("the size in the index is not set up correctly")
 	}
 	for _, word := range docWords {
-		if !bfContainsWord(index1.BloomFilter, sib, docID, word) {
+		if !bfContainsWord(index1.BloomFilter, sib, index1.Nonce, word) {
 			t.Fatalf("one or more of the words is not present in the index")
 		}
 	}
