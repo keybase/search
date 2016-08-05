@@ -1,7 +1,7 @@
 {
-  "name": "kbfs-protocol",
+  "name": "sserver-protocol",
   "version": "1.0.0",
-  "description": "An IDL and protocol generator for KBFS components",
+  "description": "An IDL and protocol generator for KBFS search server",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
