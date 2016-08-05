@@ -47,7 +47,7 @@ func TestRandUint64n(t *testing.T) {
 // Tests the `RandUint64` function.  Checks that no errors are produced.
 func TestRandUint64(t *testing.T) {
 	for i := 0; i < 10000; i++ {
-		r, err := RandUint64()
+		_, err := RandUint64()
 		if err != nil {
 			t.Fatalf("error occurred in generating random uint64: %s", err)
 		}
