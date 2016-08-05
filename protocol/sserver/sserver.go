@@ -22,10 +22,14 @@ type SearchWordArg struct {
 	Trapdoors [][]byte `codec:"trapdoors" json:"trapdoors"`
 }
 
+type GetSaltsArg struct {
+}
+
 type SearchServerInterface interface {
 	WriteIndex(context.Context, WriteIndexArg) error
 	RenameIndex(context.Context, RenameIndexArg) error
 	SearchWord(context.Context, [][]byte) ([]string, error)
+	GetSalts(context.Context) ([][]byte, error)
 }
 
 func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
@@ -80,6 +84,17 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 				},
 				MethodType: rpc.MethodCall,
 			},
+			"getSalts": {
+				MakeArg: func() interface{} {
+					ret := make([]GetSaltsArg, 1)
+					return &ret
+				},
+				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
+					ret, err = i.GetSalts(ctx)
+					return
+				},
+				MethodType: rpc.MethodCall,
+			},
 		},
 	}
 }
@@ -101,5 +116,10 @@ func (c SearchServerClient) RenameIndex(ctx context.Context, __arg RenameIndexAr
 func (c SearchServerClient) SearchWord(ctx context.Context, trapdoors [][]byte) (res []string, err error) {
 	__arg := SearchWordArg{Trapdoors: trapdoors}
 	err = c.Cli.Call(ctx, "sserver.searchServer.searchWord", []interface{}{__arg}, &res)
+	return
+}
+
+func (c SearchServerClient) GetSalts(ctx context.Context) (res [][]byte, err error) {
+	err = c.Cli.Call(ctx, "sserver.searchServer.getSalts", []interface{}{GetSaltsArg{}}, &res)
 	return
 }
