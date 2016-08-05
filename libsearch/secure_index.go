@@ -24,22 +24,22 @@ func (si *SecureIndex) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	length := 24 + len(bfBytes)
+	length := 3*binary.MaxVarintLen64 + len(bfBytes)
 	result := make([]byte, length)
 	binary.PutVarint(result[0:], int64(si.Hash().Size()))
-	binary.PutUvarint(result[8:], si.Nonce)
-	binary.PutUvarint(result[16:], si.Size)
-	copy(result[24:], bfBytes)
+	binary.PutUvarint(result[binary.MaxVarintLen64:], si.Nonce)
+	binary.PutUvarint(result[2*binary.MaxVarintLen64:], si.Size)
+	copy(result[3*binary.MaxVarintLen64:], bfBytes)
 	return result, nil
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
 func (si *SecureIndex) UnmarshalBinary(input []byte) error {
-	if len(input) < 24 {
+	if len(input) < 3*binary.MaxVarintLen64 {
 		return errors.New("insufficient binary length")
 	}
 	var err error
-	hashLen, err := readInt(input[0:8])
+	hashLen, err := readInt(input[0:binary.MaxVarintLen64])
 	if err != nil {
 		return err
 	} else if hashLen == 256/8 {
@@ -49,9 +49,9 @@ func (si *SecureIndex) UnmarshalBinary(input []byte) error {
 	} else {
 		return errors.New("invalid hash function length")
 	}
-	si.Nonce, _ = binary.Uvarint(input[8:16])
-	si.Size, _ = binary.Uvarint(input[16:24])
-	si.BloomFilter, err = bitarray.Unmarshal(input[24:])
+	si.Nonce, _ = binary.Uvarint(input[binary.MaxVarintLen64 : 2*binary.MaxVarintLen64])
+	si.Size, _ = binary.Uvarint(input[2*binary.MaxVarintLen64 : 3*binary.MaxVarintLen64])
+	si.BloomFilter, err = bitarray.Unmarshal(input[3*binary.MaxVarintLen64:])
 	if err != nil {
 		return err
 	}
