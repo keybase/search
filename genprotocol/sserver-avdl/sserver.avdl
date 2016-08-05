@@ -1,0 +1,11 @@
+@namespace("searchsrv.1")
+protocol searchServer {
+
+  @typedef("string")
+  record DocumentID {}
+
+  void writeIndex(bytes secureIndex, DocumentID docID);
+  void renameIndex(string orig, string curr);
+  array<string> searchWord(array<bytes> trapdoors); 
+  array<bytes>  getSalts();
+}

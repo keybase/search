@@ -1,4 +1,4 @@
-package indexer
+package libsearch
 
 import (
 	"bufio"
@@ -7,9 +7,8 @@ import (
 	"encoding/binary"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
+	"math/big"
 	"os"
-	"search/index"
-	"search/util"
 
 	"github.com/jxguan/go-datastructures/bitarray"
 )
@@ -50,7 +49,7 @@ func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][
 // bit array and the number of unique words in the document.  The result should
 // not be directly used as the index, as obfuscation need to be added to the
 // bloom filter.
-func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (bitarray.BitArray, int) {
+func (sib *SecureIndexBuilder) buildBloomFilter(nonce uint64, document *os.File) (bitarray.BitArray, int) {
 	scanner := bufio.NewScanner(document)
 	scanner.Split(bufio.ScanWords)
 	bf := bitarray.NewSparseBitArray()
@@ -64,7 +63,7 @@ func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (b
 		trapdoors := sib.trapdoorFunc(word)
 		for _, trapdoor := range trapdoors {
 			mac := hmac.New(sib.hash, trapdoor)
-			mac.Write([]byte(string(docID)))
+			mac.Write(big.NewInt(int64(nonce)).Bytes())
 			codeword, _ := binary.Uvarint(mac.Sum(nil))
 			bf.SetBit(codeword % sib.size)
 		}
@@ -74,18 +73,27 @@ func (sib *SecureIndexBuilder) buildBloomFilter(docID int, document *os.File) (b
 
 // Blinds the bloom filter by setting random bits to be on for `numIterations`
 // iterations.
-func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int) {
+func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int) error {
 	for i := 0; i < numIterations; i++ {
-		bf.SetBit(util.RandUint64n(sib.size))
+		randUint, err := RandUint64n(sib.size)
+		if err != nil {
+			return err
+		}
+		bf.SetBit(randUint)
 	}
+	return nil
 }
 
-// BuildSecureIndex builds the index for `document` with `docID` and an
-// *encrypted* length of `fileLen`.
-func (sib *SecureIndexBuilder) BuildSecureIndex(docID int, document *os.File, fileLen int) index.SecureIndex {
-	bf, numUniqWords := sib.buildBloomFilter(docID, document)
-	sib.blindBloomFilter(bf, (fileLen-numUniqWords)*len(sib.keys))
-	return index.SecureIndex{BloomFilter: bf, DocID: docID, Size: sib.size, Hash: sib.hash}
+// BuildSecureIndex builds the index for `document` and an *encrypted* length of
+// `fileLen`.
+func (sib *SecureIndexBuilder) BuildSecureIndex(document *os.File, fileLen int) (SecureIndex, error) {
+	nonce, err := RandUint64()
+	if err != nil {
+		return SecureIndex{}, err
+	}
+	bf, numUniqWords := sib.buildBloomFilter(nonce, document)
+	err = sib.blindBloomFilter(bf, (fileLen-numUniqWords)*len(sib.keys))
+	return SecureIndex{BloomFilter: bf, Nonce: nonce, Size: sib.size, Hash: sib.hash}, err
 }
 
 // ComputeTrapdoors computes the trapdoor values for `word`.  This acts as the
