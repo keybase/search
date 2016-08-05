@@ -2,7 +2,6 @@ package libsearch
 
 import (
 	"crypto/sha256"
-	"search/prototype/util"
 	"testing"
 
 	"github.com/jxguan/go-datastructures/bitarray"
@@ -15,7 +14,11 @@ func TestMarshalAndUnmarshal(t *testing.T) {
 	si := new(SecureIndex)
 	si.BloomFilter = bitarray.NewSparseBitArray()
 	for i := 0; i < 1000; i++ {
-		si.BloomFilter.SetBit(util.RandUint64n(1000000))
+		randUint64, err := RandUint64n(1000000)
+		if err != nil {
+			t.Fatalf("Error when generating random uint64: %s", err)
+		}
+		si.BloomFilter.SetBit(randUint64)
 	}
 	si.Size = uint64(1900000)
 	si.Hash = sha256.New
