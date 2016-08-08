@@ -5,7 +5,7 @@ protocol searchServer {
   record DocumentID {}
 
   void writeIndex(bytes secureIndex, DocumentID docID);
-  void renameIndex(string orig, string curr);
-  array<string> searchWord(array<bytes> trapdoors); 
+  void renameIndex(DocumentID orig, DocumentID curr);
+  array<DocumentID> searchWord(array<bytes> trapdoors);
   array<bytes>  getSalts();
 }

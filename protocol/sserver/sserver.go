@@ -15,8 +15,8 @@ type WriteIndexArg struct {
 }
 
 type RenameIndexArg struct {
-	Orig string `codec:"orig" json:"orig"`
-	Curr string `codec:"curr" json:"curr"`
+	Orig DocumentID `codec:"orig" json:"orig"`
+	Curr DocumentID `codec:"curr" json:"curr"`
 }
 
 type SearchWordArg struct {
@@ -29,7 +29,7 @@ type GetSaltsArg struct {
 type SearchServerInterface interface {
 	WriteIndex(context.Context, WriteIndexArg) error
 	RenameIndex(context.Context, RenameIndexArg) error
-	SearchWord(context.Context, [][]byte) ([]string, error)
+	SearchWord(context.Context, [][]byte) ([]DocumentID, error)
 	GetSalts(context.Context) ([][]byte, error)
 }
 
@@ -114,7 +114,7 @@ func (c SearchServerClient) RenameIndex(ctx context.Context, __arg RenameIndexAr
 	return
 }
 
-func (c SearchServerClient) SearchWord(ctx context.Context, trapdoors [][]byte) (res []string, err error) {
+func (c SearchServerClient) SearchWord(ctx context.Context, trapdoors [][]byte) (res []DocumentID, err error) {
 	__arg := SearchWordArg{Trapdoors: trapdoors}
 	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.searchWord", []interface{}{__arg}, &res)
 	return
