@@ -41,8 +41,40 @@ func TestDocID(t *testing.T) {
 	}
 }
 
-func TestNextPowerOfTwo(t *testing.T)
+// testNextPowerOfTwoHelper checks that `nextPowerOfTwo(n) == expected`.
+func testNextPowerOfTwoHelper(t *testing.T, n uint32, expected uint32) {
+	actual := nextPowerOfTwo(n)
+	if actual != expected {
+		t.Fatalf("incorrect result of nextPowerOfTwo(%d): expected %d actual %d", n, expected, actual)
+	}
+}
 
+// TestNextPowerOfTwo tests the `nextPowerOfTwo` function.  Checks that all the
+// results are as expected.
+func TestNextPowerOfTwo(t *testing.T) {
+	testNextPowerOfTwoHelper(t, uint32(5), uint32(8))
+	testNextPowerOfTwoHelper(t, uint32(4), uint32(8))
+	testNextPowerOfTwoHelper(t, uint32(1), uint32(2))
+	testNextPowerOfTwoHelper(t, uint32(7), uint32(8))
+	testNextPowerOfTwoHelper(t, uint32(17), uint32(32))
+}
+
+// TestPadding tests the `padPathname` and the `depadPathname` functions.
+// Checks that the same pathname is retrieved after padding and depadding.
 func TestPadding(t *testing.T) {
+	pathname := "simply/a/random/path/without/padding"
 
+	paddedPathname, err := padPathname(pathname)
+	if err != nil {
+		t.Fatalf("error when padding the pathname: %s", err)
+	}
+
+	depaddedPathname, err := depadPathname(paddedPathname)
+	if err != nil {
+		t.Fatalf("error when depadding the pathname: %s", err)
+	}
+
+	if pathname != depaddedPathname {
+		t.Fatalf("incorrect pathname after padding and depadding")
+	}
 }
