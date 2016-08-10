@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -81,5 +83,28 @@ func TestReadInt(t *testing.T) {
 	}
 	if expected != actual {
 		t.Fatalf("readInt does not yield the original integer")
+	}
+}
+
+func TestWriteFileAtomic(t *testing.T) {
+	tmpFile, err := ioutil.TempFile("", "writeFileTest")
+	if err != nil {
+		t.Fatalf("error when creating the temporary testfile: %s", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	contentString := "This is a random test string"
+
+	if err = WriteFileAtomic(tmpFile.Name(), []byte(contentString)); err != nil {
+		t.Fatalf("error when writing the file: %s", err)
+	}
+
+	contentRead, err := ioutil.ReadFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("error when reading the file: %s", err)
+	}
+
+	if string(contentRead) != contentString {
+		t.Fatalf("incorrect content is written to the file")
 	}
 }
