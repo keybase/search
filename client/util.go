@@ -98,6 +98,7 @@ func padPathname(pathname string) ([]byte, error) {
 
 // depadPathname extracts the pathname from a padded byte slice of
 // `paddedPathname` and returns it as a string.
+// The string returned is empty iff error is not nil.
 func depadPathname(paddedPathname []byte) (string, error) {
 	buf := bytes.NewBuffer(paddedPathname)
 
