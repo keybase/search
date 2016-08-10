@@ -5,6 +5,9 @@ import (
 	"testing"
 )
 
+// TestDocID tests the `pathnameToDocID` and the `docIDToPathname` functions.
+// Checks that the orginal pathname is retrieved after encrypting and
+// decrypting, and that decrypting with a different key yields an error.
 func TestDocID(t *testing.T) {
 	var key1, key2 [32]byte
 	_, err := rand.Read(key1[:])
@@ -36,4 +39,10 @@ func TestDocID(t *testing.T) {
 	if err == nil && pathname == pathname2 {
 		t.Fatalf("encrypted pathname decrypted with a different key")
 	}
+}
+
+func TestNextPowerOfTwo(t *testing.T)
+
+func TestPadding(t *testing.T) {
+
 }
