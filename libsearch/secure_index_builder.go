@@ -5,12 +5,12 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
-	"golang.org/x/crypto/pbkdf2"
 	"hash"
 	"math/big"
 	"os"
 
 	"github.com/jxguan/go-datastructures/bitarray"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 // SecureIndexBuilder stores the essential information needed to build the
@@ -97,7 +97,7 @@ func (sib *SecureIndexBuilder) BuildSecureIndex(document *os.File, fileLen int) 
 }
 
 // ComputeTrapdoors computes the trapdoor values for `word`.  This acts as the
-// public getter for the trapdoorFunc field of SecureIndexBUilder.
+// public getter for the trapdoorFunc field of SecureIndexBuilder.
 func (sib *SecureIndexBuilder) ComputeTrapdoors(word string) [][]byte {
 	return sib.trapdoorFunc(word)
 }

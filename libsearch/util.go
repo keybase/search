@@ -4,8 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"io/ioutil"
 	"math"
 	"math/big"
+	"os"
 )
 
 // GenerateSalts generates `numKeys` salts with length `lenSalt`.  Returns an
@@ -59,4 +61,22 @@ func readInt(input []byte) (int, error) {
 		return 0, errors.New("cannot read the int")
 	}
 	return int(num), nil
+}
+
+// WriteFileAtomic writes `content` to a file with `pathname`.  First writes to
+// a temporary file and then performs a rename so that the write is atomic.
+func WriteFileAtomic(pathname string, content []byte) error {
+	tmpFile, err := ioutil.TempFile("", "tmpFile")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	err = ioutil.WriteFile(tmpFile.Name(), content, 0666)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(tmpFile.Name(), pathname)
+	return err
 }
