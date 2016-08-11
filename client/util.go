@@ -14,10 +14,13 @@ import (
 
 // The length of the overhead added to padding.
 const padPrefixLength = 4
+const docIDVersionLength = 2
+const docIDNonceLength = 24
+const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 
 // pathnameToDocID encrypts a `pathname` to a document ID using `key`.
-func pathnameToDocID(pathname string, key *[32]byte) (sserver1.DocumentID, error) {
-	var nonce [24]byte
+func pathnameToDocID(pathname string, key [32]byte) (sserver1.DocumentID, error) {
+	var nonce [docIDNonceLength]byte
 	_, err := rand.Read(nonce[:])
 	if err != nil {
 		return sserver1.DocumentID(""), err
@@ -28,22 +31,25 @@ func pathnameToDocID(pathname string, key *[32]byte) (sserver1.DocumentID, error
 		return sserver1.DocumentID(""), err
 	}
 
-	sealedBox := secretbox.Seal(nil, (paddedPathname), &nonce, key)
+	sealedBox := secretbox.Seal(nil, (paddedPathname), &nonce, &key)
 
-	docIDRaw := append(nonce[:], sealedBox...)
+	var version [docIDVersionLength]byte
+	// TODO: initialize version number
 
-	return sserver1.DocumentID(base64.URLEncoding.EncodeToString(docIDRaw)), nil
+	docIDRaw := append(append(version[:], nonce[:]...), sealedBox...)
+
+	return sserver1.DocumentID(base64.RawURLEncoding.EncodeToString(docIDRaw)), nil
 }
 
 // docIDToPathname decrypts a `docID` to get the actual pathname by using `key`.
-func docIDToPathname(docID sserver1.DocumentID, key *[32]byte) (string, error) {
-	docIDRaw, err := base64.URLEncoding.DecodeString(docID.String())
+func docIDToPathname(docID sserver1.DocumentID, key [32]byte) (string, error) {
+	docIDRaw, err := base64.RawURLEncoding.DecodeString(docID.String())
 	if err != nil {
 		return "", err
 	}
-	var nonce [24]byte
-	copy(nonce[:], docIDRaw[0:24])
-	pathnameRaw, ok := secretbox.Open(nil, docIDRaw[24:], &nonce, key)
+	var nonce [docIDNonceLength]byte
+	copy(nonce[:], docIDRaw[docIDVersionLength:docIDPrefixLength])
+	pathnameRaw, ok := secretbox.Open(nil, docIDRaw[docIDPrefixLength:], &nonce, &key)
 	if !ok {
 		return "", errors.New("invalid document ID")
 	}
@@ -77,7 +83,7 @@ func padPathname(pathname string) ([]byte, error) {
 	paddedLen := nextPowerOfTwo(origLen)
 	padLen := int64(paddedLen - origLen)
 
-	buf := bytes.NewBuffer(make([]byte, 0, paddedLen+padPrefixLength))
+	buf := bytes.NewBuffer(make([]byte, 0, padPrefixLength+paddedLen))
 
 	if err := binary.Write(buf, binary.LittleEndian, origLen); err != nil {
 		return nil, err
@@ -107,7 +113,7 @@ func depadPathname(paddedPathname []byte) (string, error) {
 		return "", err
 	}
 
-	contentEndPos := int(origLen + padPrefixLength)
+	contentEndPos := int(padPrefixLength + origLen)
 	if contentEndPos > len(paddedPathname) {
 		return "", errors.New("invalid padded padPathname")
 	}

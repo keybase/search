@@ -21,12 +21,12 @@ func TestDocID(t *testing.T) {
 
 	pathname := "path/to/a/test/file"
 
-	docID, err := pathnameToDocID(pathname, &key1)
+	docID, err := pathnameToDocID(pathname, key1)
 	if err != nil {
 		t.Fatalf("error when encrypting the pathname: %s", err)
 	}
 
-	pathnameRetrieved, err := docIDToPathname(docID, &key1)
+	pathnameRetrieved, err := docIDToPathname(docID, key1)
 	if err != nil {
 		t.Fatalf("error when decrypting the pathname: %s", err)
 	}
@@ -35,7 +35,7 @@ func TestDocID(t *testing.T) {
 		t.Fatalf("encrypting and then decrypting does not yield the original pathname")
 	}
 
-	pathname2, err := docIDToPathname(docID, &key2)
+	pathname2, err := docIDToPathname(docID, key2)
 	if err == nil && pathname == pathname2 {
 		t.Fatalf("encrypted pathname decrypted with a different key")
 	}
@@ -52,11 +52,11 @@ func testNextPowerOfTwoHelper(t *testing.T, n uint32, expected uint32) {
 // TestNextPowerOfTwo tests the `nextPowerOfTwo` function.  Checks that all the
 // results are as expected.
 func TestNextPowerOfTwo(t *testing.T) {
-	testNextPowerOfTwoHelper(t, uint32(5), uint32(8))
-	testNextPowerOfTwoHelper(t, uint32(4), uint32(8))
-	testNextPowerOfTwoHelper(t, uint32(1), uint32(2))
-	testNextPowerOfTwoHelper(t, uint32(7), uint32(8))
-	testNextPowerOfTwoHelper(t, uint32(17), uint32(32))
+	testNextPowerOfTwoHelper(t, 5, 8)
+	testNextPowerOfTwoHelper(t, 4, 8)
+	testNextPowerOfTwoHelper(t, 1, 2)
+	testNextPowerOfTwoHelper(t, 7, 8)
+	testNextPowerOfTwoHelper(t, 17, 32)
 }
 
 // TestPadding tests the `padPathname` and the `depadPathname` functions.
