@@ -8,4 +8,5 @@ protocol searchServer {
   void renameIndex(DocumentID orig, DocumentID curr);
   array<DocumentID> searchWord(array<bytes> trapdoors);
   array<bytes>  getSalts();
+  long getSize();
 }

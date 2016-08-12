@@ -26,11 +26,15 @@ type SearchWordArg struct {
 type GetSaltsArg struct {
 }
 
+type GetSizeArg struct {
+}
+
 type SearchServerInterface interface {
 	WriteIndex(context.Context, WriteIndexArg) error
 	RenameIndex(context.Context, RenameIndexArg) error
 	SearchWord(context.Context, [][]byte) ([]DocumentID, error)
 	GetSalts(context.Context) ([][]byte, error)
+	GetSize(context.Context) (int64, error)
 }
 
 func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
@@ -96,6 +100,17 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 				},
 				MethodType: rpc.MethodCall,
 			},
+			"getSize": {
+				MakeArg: func() interface{} {
+					ret := make([]GetSizeArg, 1)
+					return &ret
+				},
+				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
+					ret, err = i.GetSize(ctx)
+					return
+				},
+				MethodType: rpc.MethodCall,
+			},
 		},
 	}
 }
@@ -122,5 +137,10 @@ func (c SearchServerClient) SearchWord(ctx context.Context, trapdoors [][]byte) 
 
 func (c SearchServerClient) GetSalts(ctx context.Context) (res [][]byte, err error) {
 	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSalts", []interface{}{GetSaltsArg{}}, &res)
+	return
+}
+
+func (c SearchServerClient) GetSize(ctx context.Context) (res int64, err error) {
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSize", []interface{}{GetSizeArg{}}, &res)
 	return
 }
