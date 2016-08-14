@@ -17,7 +17,7 @@ type Client struct {
 	indexer   *libsearch.SecureIndexBuilder
 }
 
-func CreateClient(ipAddr string, port int, masterSecret []byte) (*Client, error) {
+func CreateClient(ipAddr string, port int, masterSecret []byte, directory string) (*Client, error) {
 	c, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ipAddr, port))
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func CreateClient(ipAddr string, port int, masterSecret []byte) (*Client, error)
 	cli := new(Client)
 	*cli = Client{
 		searchCli: searchCli,
-		directory: ".client",
+		directory: directory,
 		indexer:   indexer,
 	}
 
