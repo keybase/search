@@ -49,7 +49,7 @@ func CreateSecureIndexBuilder(h func() hash.Hash, masterSecret []byte, salts [][
 // bit array and the number of unique words in the document.  The result should
 // not be directly used as the index, as obfuscation need to be added to the
 // bloom filter.
-func (sib *SecureIndexBuilder) buildBloomFilter(nonce uint64, document *os.File) (bitarray.BitArray, int) {
+func (sib *SecureIndexBuilder) buildBloomFilter(nonce uint64, document *os.File) (bitarray.BitArray, int64) {
 	scanner := bufio.NewScanner(document)
 	scanner.Split(bufio.ScanWords)
 	bf := bitarray.NewSparseBitArray()
@@ -68,13 +68,13 @@ func (sib *SecureIndexBuilder) buildBloomFilter(nonce uint64, document *os.File)
 			bf.SetBit(codeword % sib.size)
 		}
 	}
-	return bf, len(words)
+	return bf, int64(len(words))
 }
 
 // Blinds the bloom filter by setting random bits to be on for `numIterations`
 // iterations.
-func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int) error {
-	for i := 0; i < numIterations; i++ {
+func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int64) error {
+	for i := int64(0); i < numIterations; i++ {
 		randUint, err := RandUint64n(sib.size)
 		if err != nil {
 			return err
@@ -86,13 +86,13 @@ func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterati
 
 // BuildSecureIndex builds the index for `document` and an *encrypted* length of
 // `fileLen`.
-func (sib *SecureIndexBuilder) BuildSecureIndex(document *os.File, fileLen int) (SecureIndex, error) {
+func (sib *SecureIndexBuilder) BuildSecureIndex(document *os.File, fileLen int64) (SecureIndex, error) {
 	nonce, err := RandUint64()
 	if err != nil {
 		return SecureIndex{}, err
 	}
 	bf, numUniqWords := sib.buildBloomFilter(nonce, document)
-	err = sib.blindBloomFilter(bf, (fileLen-numUniqWords)*len(sib.keys))
+	err = sib.blindBloomFilter(bf, (fileLen-numUniqWords)*int64(len(sib.keys)))
 	return SecureIndex{BloomFilter: bf, Nonce: nonce, Size: sib.size, Hash: sib.hash}, err
 }
 

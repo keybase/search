@@ -117,7 +117,7 @@ func TestBuildBloomFilter(t *testing.T) {
 	if bf1.Equals(bf3) {
 		t.Fatalf("the same document with different ids produces the same bloom filter")
 	}
-	if count != len(docWords)-1 {
+	if count != int64(len(docWords)-1) {
 		t.Fatalf("the number of unique words is not correct")
 	}
 	for _, word := range docWords {
@@ -176,7 +176,7 @@ func TestBuildSecureIndex(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	index1, err := sib.BuildSecureIndex(doc, len(docContent))
+	index1, err := sib.BuildSecureIndex(doc, int64(len(docContent)))
 	if err != nil {
 		t.Fatalf("error when building the secure index: %s", err)
 	}
@@ -184,7 +184,7 @@ func TestBuildSecureIndex(t *testing.T) {
 	if _, err := doc.Seek(0, 0); err != nil {
 		t.Errorf("cannot rewind the temporary test file for `TestBuildSecureIndex")
 	}
-	index2, err := sib.BuildSecureIndex(doc, len(docContent))
+	index2, err := sib.BuildSecureIndex(doc, int64(len(docContent)))
 	if err != nil {
 		t.Fatalf("error when building the secure index: %s", err)
 	}
