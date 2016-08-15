@@ -31,7 +31,7 @@ func pathnameToDocID(pathname string, key [32]byte) (sserver1.DocumentID, error)
 		return sserver1.DocumentID(""), err
 	}
 
-	sealedBox := secretbox.Seal(nil, (paddedPathname), &nonce, &key)
+	sealedBox := secretbox.Seal(nil, paddedPathname, &nonce, &key)
 
 	var version [docIDVersionLength]byte
 	// TODO: initialize version number
