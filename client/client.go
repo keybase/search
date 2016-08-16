@@ -127,6 +127,21 @@ func (c *Client) RenameFile(orig, curr string) error {
 	return c.searchCli.RenameIndex(context.TODO(), sserver1.RenameIndexArg{Orig: origDocID, Curr: currDocID})
 }
 
+// DeleteFile deletes the index on the server associated with `pathname`.
+func (c *Client) DeleteFile(pathname string) error {
+	relPath, err := relPathStrict(c.directory, pathname)
+	if err != nil {
+		return err
+	}
+
+	docID, err := pathnameToDocID(relPath, c.pathnameKey)
+	if err != nil {
+		return err
+	}
+
+	return c.searchCli.DeleteIndex(context.TODO(), docID)
+}
+
 // SearchWord performs a search request on the search server and returns the
 // list of filenames possibly containing the word.
 // NOTE: False positives are possible.

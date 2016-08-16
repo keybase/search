@@ -130,7 +130,7 @@ func TestAddFile(t *testing.T) {
 	}
 }
 
-// TestRenameFile tests the `renameFile` function.  Checks the indexes are
+// TestRenameFile tests the `RenameFile` function.  Checks the indexes are
 // properly renamed and errors returned when necessary.
 func TestRenameFile(t *testing.T) {
 	client, dir := startTestClient(t)
@@ -153,6 +153,31 @@ func TestRenameFile(t *testing.T) {
 	// exists
 	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err == nil {
 		t.Fatalf("no error returned when renaming non-existing file")
+	}
+}
+
+// TestDeleteFile tests the `DeleteFile` function.  Checks the indexes are
+// properly deleted and errors returned when necessary.
+func TestDeletFile(t *testing.T) {
+	client, dir := startTestClient(t)
+	defer os.RemoveAll(dir)
+
+	content := "a random content"
+	if err := ioutil.WriteFile(filepath.Join(dir, "testDeleteFile"), []byte(content), 0666); err != nil {
+		t.Fatalf("error when writing test file: %s", err)
+	}
+
+	if err := client.AddFile(filepath.Join(dir, "testDeleteFile")); err != nil {
+		t.Fatalf("error when adding the file: %s", err)
+	}
+
+	if err := client.DeleteFile(filepath.Join(dir, "testDeleteFile")); err != nil {
+		t.Fatalf("error when deleting file: %s", err)
+	}
+
+	// Doing the deleting second time should fail, as the file no longer exists
+	if err := client.DeleteFile(filepath.Join(dir, "testDeleteFile")); err == nil {
+		t.Fatalf("no error returned when deleting non-existing file")
 	}
 }
 
