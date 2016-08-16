@@ -103,5 +103,25 @@ func (c *Client) AddFile(pathname string) error {
 // This will rename their corresponding indexes.  Returns an error if the
 // filenames are invalid.
 func (c *Client) RenameFile(orig, curr string) error {
-	return nil
+	relOrig, err := relPathStrict(c.directory, orig)
+	if err != nil {
+		return err
+	}
+
+	relCurr, err := relPathStrict(c.directory, curr)
+	if err != nil {
+		return err
+	}
+
+	origDocID, err := pathnameToDocID(relOrig, c.pathnameKey)
+	if err != nil {
+		return err
+	}
+
+	currDocID, err := pathnameToDocID(relCurr, c.pathnameKey)
+	if err != nil {
+		return err
+	}
+
+	return c.searchCli.RenameIndex(context.TODO(), sserver1.RenameIndexArg{Orig: origDocID, Curr: currDocID})
 }

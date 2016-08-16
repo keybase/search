@@ -128,6 +128,32 @@ func TestAddFile(t *testing.T) {
 	}
 }
 
+// TestRenameFile tests the `renameFile` function.  Checks the indexes are
+// properly renamed and errors returned when necessary.
+func TestRenameFile(t *testing.T) {
+	client, dir := startTestClient(t)
+	defer os.RemoveAll(dir)
+
+	content := "a random file"
+	if err := ioutil.WriteFile(filepath.Join(dir, "testRenameFile"), []byte(content), 0666); err != nil {
+		t.Fatalf("error when writing test file: %s", err)
+	}
+
+	if err := client.AddFile(filepath.Join(dir, "testRenameFile")); err != nil {
+		t.Fatalf("error when adding the file: %s", err)
+	}
+
+	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err != nil {
+		t.Fatalf("error when renaming file: %s", err)
+	}
+
+	// Doing the renaming second time should fail, as the orignal file no longer
+	// exists
+	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err == nil {
+		t.Fatalf("no error returned when renaming non-existing file")
+	}
+}
+
 // TestMain sets up the test server and directory before the tests and tears
 // them down after the tests are completed.
 func TestMain(m *testing.M) {
