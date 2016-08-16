@@ -2,11 +2,10 @@ package client
 
 import (
 	"bytes"
-	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
-	"io"
 	"path/filepath"
 	"strings"
 
@@ -23,10 +22,8 @@ const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 // pathnameToDocID encrypts a `pathname` to a document ID using `key`.
 func pathnameToDocID(pathname string, key [32]byte) (sserver1.DocumentID, error) {
 	var nonce [docIDNonceLength]byte
-	_, err := rand.Read(nonce[:])
-	if err != nil {
-		return sserver1.DocumentID(""), err
-	}
+	cksum := sha256.Sum256([]byte(pathname))
+	copy(nonce[:], cksum[0:24])
 
 	paddedPathname, err := padPathname(pathname)
 	if err != nil {
@@ -78,12 +75,11 @@ func nextPowerOfTwo(n uint32) uint32 {
 	return n
 }
 
-// padPathname pads the `pathname` and returns the padded pathname in a byte
-// slice.
+// padPathname zero-pads the `pathname` and returns the padded pathname in a
+// byte slice.
 func padPathname(pathname string) ([]byte, error) {
 	origLen := uint32(len(pathname))
 	paddedLen := nextPowerOfTwo(origLen)
-	padLen := int64(paddedLen - origLen)
 
 	buf := bytes.NewBuffer(make([]byte, 0, padPrefixLength+paddedLen))
 
@@ -92,14 +88,6 @@ func padPathname(pathname string) ([]byte, error) {
 	}
 
 	buf.WriteString(pathname)
-
-	n, err := io.CopyN(buf, rand.Reader, padLen)
-	if err != nil {
-		return nil, err
-	}
-	if n != padLen {
-		return nil, errors.New("short crypto rand read")
-	}
 
 	return buf.Bytes(), nil
 }
