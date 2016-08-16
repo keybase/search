@@ -4,42 +4,49 @@
 	"package": [
 		{
 			"checksumSHA1": "9NoxW1ZvnX4inGkH4SA9RW6rIgM=",
+			"origin": "github.com/keybase/search/vendor/github.com/cenkalti/backoff",
 			"path": "github.com/cenkalti/backoff",
 			"revision": "cdf48bbc1eb78d1349cbda326a4a037f7ba565c6",
 			"revisionTime": "2016-06-10T10:09:12Z"
 		},
 		{
 			"checksumSHA1": "NwOknFEY5/EjBsjwv1QV3sRyB3c=",
+			"origin": "github.com/keybase/search/vendor/github.com/jxguan/go-datastructures/bitarray",
 			"path": "github.com/jxguan/go-datastructures/bitarray",
 			"revision": "043b2d9078f6646b082d37c76baab22f70944442",
 			"revisionTime": "2016-07-14T00:45:06Z"
 		},
 		{
 			"checksumSHA1": "s3Y+v1n9IMYa3dzhgsRpyozSMSE=",
+			"origin": "github.com/keybase/search/vendor/github.com/keybase/go-codec/codec",
 			"path": "github.com/keybase/go-codec/codec",
 			"revision": "cc2681ec6f901149e58af9d40a90da1aa370aadb",
 			"revisionTime": "2016-05-31T18:25:31Z"
 		},
 		{
 			"checksumSHA1": "bQYKzjpfY6drHZIr7jncJHAh8BQ=",
+			"origin": "github.com/keybase/search/vendor/github.com/keybase/go-framed-msgpack-rpc",
 			"path": "github.com/keybase/go-framed-msgpack-rpc",
 			"revision": "090895b12240aa18b8d6a759a2638f0c1065c7d0",
 			"revisionTime": "2016-06-15T14:04:14Z"
 		},
 		{
 			"checksumSHA1": "1MGpGDQqnUoRpv7VEcQrXOBydXE=",
+			"origin": "github.com/keybase/search/vendor/golang.org/x/crypto/pbkdf2",
 			"path": "golang.org/x/crypto/pbkdf2",
 			"revision": "2c99acdd1e9b90d779ca23f632aad86af9909c62",
 			"revisionTime": "2016-07-10T22:38:34Z"
 		},
 		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
+			"origin": "github.com/keybase/search/vendor/golang.org/x/net/context",
 			"path": "golang.org/x/net/context",
 			"revision": "f6d211983832e1efcd77e80779fd5f1142741356",
 			"revisionTime": "2016-08-02T14:09:40Z"
 		},
 		{
 			"checksumSHA1": "vof6h7IiLsIUtakYY4/rKhor48Q=",
+			"origin": "github.com/keybase/search/vendor/gopkg.in/cheggaaa/pb.v1",
 			"path": "gopkg.in/cheggaaa/pb.v1",
 			"revision": "9453b2db37f4d8bc63751daca63bbe7049eb5e74",
 			"revisionTime": "2016-07-14T16:52:18Z"
