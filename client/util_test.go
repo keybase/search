@@ -78,3 +78,31 @@ func TestPadding(t *testing.T) {
 		t.Fatalf("incorrect pathname after padding and depadding")
 	}
 }
+
+// testRelPathStrictHelper checks that the call to `relPathStrict` with
+// `basepath` and `targpath` yields the `expected` result and that the error
+// status matches the `isError` boolean.
+func testRelPathStrictHelper(t *testing.T, basepath, targpath, expected string, isError bool) {
+	actual, err := relPathStrict(basepath, targpath)
+	if isError {
+		if err == nil {
+			t.Fatalf("expecting error for basepath \"%s\" and targpath \"%s\", no error returned", basepath, targpath)
+		}
+	} else if err != nil {
+		t.Fatalf("unexpected error for basepath \"%s\" and targpath \"%s\"", basepath, targpath)
+	} else if actual != expected {
+		t.Fatalf("incorrect relative path for basepath \"%s\" and targpath \"%s\", expected \"%s\", actual \"%s\"", basepath, targpath, expected, actual)
+	}
+}
+
+// TestRelPathStrict tests multiple edge cases for the `relPathStrict` function.
+func TestRelPathStrict(t *testing.T) {
+	testRelPathStrictHelper(t, "test", "test/valid", "valid", false)
+	testRelPathStrictHelper(t, "test", "test/multiple/folders/valid", "multiple/folders/valid", false)
+	testRelPathStrictHelper(t, "test", "test/../dotdotinvalid", "", true)
+	testRelPathStrictHelper(t, "test", "test/test/../../dotdotinvalid", "", true)
+	testRelPathStrictHelper(t, "test", "test/../test/dotdotvalid", "dotdotvalid", false)
+	testRelPathStrictHelper(t, "/abs", "/abs/valid", "valid", false)
+	testRelPathStrictHelper(t, "test", "totallyinvalid", "", true)
+	testRelPathStrictHelper(t, "reverse/invalid", "reverse", "", true)
+}

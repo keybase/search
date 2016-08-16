@@ -2,12 +2,10 @@ package client
 
 import (
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 
 	rpc "github.com/keybase/go-framed-msgpack-rpc"
 	"github.com/keybase/search/libsearch"
@@ -68,16 +66,7 @@ func CreateClient(ipAddr string, port int, masterSecret []byte, directory string
 // AddFile indexes a file with the given `pathname` and writes the index to the
 // server.
 func (c *Client) AddFile(pathname string) error {
-	absPath, err := filepath.Abs(pathname)
-	if err != nil {
-		return err
-	}
-
-	if !strings.HasPrefix(absPath, c.directory) {
-		return errors.New("file not in client directory")
-	}
-
-	relPath, err := filepath.Rel(c.directory, absPath)
+	relPath, err := relPathStrict(c.directory, pathname)
 	if err != nil {
 		return err
 	}
@@ -108,4 +97,11 @@ func (c *Client) AddFile(pathname string) error {
 	}
 
 	return c.searchCli.WriteIndex(context.TODO(), sserver1.WriteIndexArg{SecureIndex: secIndexBytes, DocID: docID})
+}
+
+// RenameFile is called when a file has been renamed from `orig` to `curr`.
+// This will rename their corresponding indexes.  Returns an error if the
+// filenames are invalid.
+func (c *Client) RenameFile(orig, curr string) error {
+	return nil
 }

@@ -7,6 +7,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"path/filepath"
+	"strings"
 
 	sserver1 "github.com/keybase/search/protocol/sserver"
 	"golang.org/x/crypto/nacl/secretbox"
@@ -119,4 +121,29 @@ func depadPathname(paddedPathname []byte) (string, error) {
 	}
 
 	return string(buf.Next(int(origLen))), nil
+}
+
+// relPathStrict returns a relative path for `targpath` from `basepath`.  Unlike
+// the `filepath.Rel` function, this function returns an error if `targpath` is
+// not within `basepath`.
+func relPathStrict(basepath, targpath string) (string, error) {
+	absTargpath, err := filepath.Abs(targpath)
+	if err != nil {
+		return "", err
+	}
+
+	absBasepath, err := filepath.Abs(basepath)
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.HasPrefix(absTargpath, absBasepath) {
+		return "", errors.New("target path not within base path")
+	}
+
+	relPath, err := filepath.Rel(absBasepath, absTargpath)
+	if err != nil {
+		return "", err
+	}
+	return relPath, nil
 }
