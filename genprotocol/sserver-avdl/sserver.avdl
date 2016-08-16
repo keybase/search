@@ -6,6 +6,7 @@ protocol searchServer {
 
   void writeIndex(bytes secureIndex, DocumentID docID);
   void renameIndex(DocumentID orig, DocumentID curr);
+  void deleteIndex(DocumentID docID);
   array<DocumentID> searchWord(array<bytes> trapdoors);
   array<bytes>  getSalts();
   long getSize();
