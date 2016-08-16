@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 
 	rpc "github.com/keybase/go-framed-msgpack-rpc"
 	"github.com/keybase/search/libsearch"
@@ -124,4 +125,27 @@ func (c *Client) RenameFile(orig, curr string) error {
 	}
 
 	return c.searchCli.RenameIndex(context.TODO(), sserver1.RenameIndexArg{Orig: origDocID, Curr: currDocID})
+}
+
+// SearchWord performs a search request on the search server and returns the
+// list of filenames possibly containing the word.
+// NOTE: False positives are possible.
+func (c *Client) SearchWord(word string) ([]string, error) {
+	trapdoors := c.indexer.ComputeTrapdoors(word)
+	documents, err := c.searchCli.SearchWord(context.TODO(), trapdoors)
+	if err != nil {
+		return nil, err
+	}
+
+	filenames := make([]string, len(documents))
+	for i, docID := range documents {
+		pathname, err := docIDToPathname(docID, c.pathnameKey)
+		if err != nil {
+			return nil, err
+		}
+		filenames[i] = filepath.Join(c.directory, pathname)
+	}
+
+	sort.Strings(filenames)
+	return filenames, nil
 }

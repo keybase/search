@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -134,7 +136,7 @@ func TestRenameFile(t *testing.T) {
 	client, dir := startTestClient(t)
 	defer os.RemoveAll(dir)
 
-	content := "a random file"
+	content := "a random content"
 	if err := ioutil.WriteFile(filepath.Join(dir, "testRenameFile"), []byte(content), 0666); err != nil {
 		t.Fatalf("error when writing test file: %s", err)
 	}
@@ -151,6 +153,60 @@ func TestRenameFile(t *testing.T) {
 	// exists
 	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err == nil {
 		t.Fatalf("no error returned when renaming non-existing file")
+	}
+}
+
+// TestSearchWord tests the `SearchWord` function.  Checks that the correct set
+// of filenames are returned.
+func TestSearchWord(t *testing.T) {
+	client, dir := startTestClient(t)
+	defer os.RemoveAll(dir)
+
+	contents := []string{
+		"This is a simple test file",
+		"This is another test file",
+		"This is a different test file",
+		"This is yet another test file",
+		"This is the last test file",
+	}
+	filenames := make([]string, 5)
+
+	for i := 0; i < len(contents); i++ {
+		filenames[i] = filepath.Join(dir, "testSearchFile"+strconv.Itoa(i))
+		if err := ioutil.WriteFile(filenames[i], []byte(contents[i]), 0666); err != nil {
+			t.Fatalf("error when writing test file: %s", err)
+		}
+		if err := client.AddFile(filenames[i]); err != nil {
+			t.Fatalf("error when adding the file: %s", err)
+		}
+	}
+
+	expected := []string{filenames[1], filenames[3]}
+	sort.Strings(expected)
+	actual, err := client.SearchWord("another")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("incorrect search result: expected \"%s\" actual \"%s\"", expected, actual)
+	}
+
+	empty, err := client.SearchWord("non-existing")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
+	if len(empty) > 0 {
+		t.Fatalf("filenames found for non-existing word")
+	}
+
+	expected = filenames
+	sort.Strings(expected)
+	actual, err = client.SearchWord("file")
+	if err != nil {
+		t.Fatalf("error when searching word: %s", err)
+	}
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("incorrect search result: expected \"%s\" actual \"%s\"", expected, actual)
 	}
 }
 
