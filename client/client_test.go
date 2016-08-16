@@ -18,28 +18,26 @@ const TestServerIP = "127.0.0.1"
 // The port that the server is listening on
 const TestServerPort = 8022
 
-var ServerDir string
-
 // startTestServer starts a server listening at `TestServerIP` on
 // `TestServerPort`.  Need to later manually tear down the server.
-func startTestServer() (int, error) {
-	ServerDir, err := ioutil.TempDir("", "TestServer")
+func startTestServer() (int, string, error) {
+	dir, err := ioutil.TempDir("", "TestServer")
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
 	cmd := exec.Command("go",
 		"run",
 		fmt.Sprintf("%s/src/github.com/keybase/search-server/sserver/sserver/main.go", os.Getenv("GOPATH")),
-		fmt.Sprintf("--server_dir=%s", ServerDir),
+		fmt.Sprintf("--server_dir=%s", dir),
 		fmt.Sprintf("--port=%d", TestServerPort),
 		fmt.Sprintf("--ip_addr=%s", TestServerIP))
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	err = cmd.Start()
 	if err != nil {
-		os.RemoveAll(ServerDir)
-		return 0, err
+		os.RemoveAll(dir)
+		return 0, "", err
 	}
 
 	// Need to wait for the server to properly start
@@ -47,22 +45,22 @@ func startTestServer() (int, error) {
 
 	pgid, err := syscall.Getpgid(cmd.Process.Pid)
 	if err != nil {
-		os.RemoveAll(ServerDir)
+		os.RemoveAll(dir)
 		cmd.Process.Kill()
-		return 0, err
+		return 0, "", err
 	}
 
-	return pgid, nil
+	return pgid, "", nil
 }
 
 // tearDownTestServer tears down the server process with `pgid`, and cleans up
-// the temporary directort `ServerDir` for the test server.
-func tearDownTestServer(pgid int) error {
+// the temporary directort `dir` for the test server.
+func tearDownTestServer(pgid int, dir string) error {
 	err := syscall.Kill(-pgid, syscall.SIGKILL)
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(ServerDir)
+	return os.RemoveAll(dir)
 }
 
 // startTestClient creates an instance of a test client and returns a pointer to
@@ -133,7 +131,7 @@ func TestAddFile(t *testing.T) {
 // TestMain sets up the test server and directory before the tests and tears
 // them down after the tests are completed.
 func TestMain(m *testing.M) {
-	pgid, err := startTestServer()
+	pgid, dir, err := startTestServer()
 	if err != nil {
 		panic("error when starting the test server")
 	}
@@ -142,7 +140,7 @@ func TestMain(m *testing.M) {
 	os.Stderr = nil
 	exitCode := m.Run()
 
-	err = tearDownTestServer(pgid)
+	err = tearDownTestServer(pgid, dir)
 	if err != nil {
 		panic("error when tearing down the test server")
 	}
