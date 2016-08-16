@@ -2,8 +2,12 @@ package client
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 
 	rpc "github.com/keybase/go-framed-msgpack-rpc"
 	"github.com/keybase/search/libsearch"
@@ -11,12 +15,16 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Client contains all the necessary information for a KBFS Search Client.
 type Client struct {
-	searchCli sserver1.SearchServerClient
-	directory string
-	indexer   *libsearch.SecureIndexBuilder
+	searchCli   sserver1.SearchServerClient   // The client that talks to the RPC Search Server.
+	directory   string                        // The directory where KBFS is mounted.
+	indexer     *libsearch.SecureIndexBuilder // The indexer for the client.
+	pathnameKey [32]byte                      // The key to encrypt and decrypt the pathnames to/from document IDs.
 }
 
+// CreateClient creates a new `Client` instance with the parameters and returns
+// a pointer the the instance.  Returns an error on any failue.
 func CreateClient(ipAddr string, port int, masterSecret []byte, directory string) (*Client, error) {
 	c, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ipAddr, port))
 	if err != nil {
@@ -38,12 +46,66 @@ func CreateClient(ipAddr string, port int, masterSecret []byte, directory string
 
 	indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, salts, uint64(size))
 
+	var pathnameKey [32]byte
+	copy(pathnameKey[:], masterSecret[0:32])
+
+	absDir, err := filepath.Abs(directory)
+	if err != nil {
+		return nil, err
+	}
+
 	cli := new(Client)
 	*cli = Client{
-		searchCli: searchCli,
-		directory: directory,
-		indexer:   indexer,
+		searchCli:   searchCli,
+		directory:   absDir,
+		indexer:     indexer,
+		pathnameKey: pathnameKey,
 	}
 
 	return cli, nil
+}
+
+// AddFile indexes a file with the given `pathname` and writes the index to the
+// server.
+func (c *Client) AddFile(pathname string) error {
+	absPath, err := filepath.Abs(pathname)
+	if err != nil {
+		return err
+	}
+
+	if !strings.HasPrefix(absPath, c.directory) {
+		return errors.New("file not in client directory")
+	}
+
+	relPath, err := filepath.Rel(c.directory, absPath)
+	if err != nil {
+		return err
+	}
+
+	docID, err := pathnameToDocID(relPath, c.pathnameKey)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(pathname)
+	if err != nil {
+		return err
+	}
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	secIndex, err := c.indexer.BuildSecureIndex(file, fileInfo.Size())
+	if err != nil {
+		return err
+	}
+
+	secIndexBytes, err := secIndex.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	return c.searchCli.WriteIndex(context.TODO(), sserver1.WriteIndexArg{SecureIndex: secIndexBytes, DocID: docID})
 }
