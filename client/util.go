@@ -131,7 +131,7 @@ func relPathStrict(basepath, targpath string) (string, error) {
 		return "", err
 	}
 
-	if !strings.HasPrefix(absTargpath, absBasepath) {
+	if !strings.HasPrefix(absTargpath, absBasepath+"/") {
 		return "", errors.New("target path not within base path")
 	}
 

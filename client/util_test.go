@@ -105,4 +105,7 @@ func TestRelPathStrict(t *testing.T) {
 	testRelPathStrictHelper(t, "/abs", "/abs/valid", "valid", false)
 	testRelPathStrictHelper(t, "test", "totallyinvalid", "", true)
 	testRelPathStrictHelper(t, "reverse/invalid", "reverse", "", true)
+	testRelPathStrictHelper(t, "prefix", "prefixinvalid/invalid", "", true)
+	testRelPathStrictHelper(t, "same", "same", "", true)
+
 }
