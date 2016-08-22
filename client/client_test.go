@@ -1,68 +1,69 @@
 package client
 
 import (
-	"fmt"
+	"crypto/sha256"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
-	"syscall"
 	"testing"
-	"time"
+
+	"github.com/keybase/search/libsearch"
+	sserver1 "github.com/keybase/search/protocol/sserver"
+	"golang.org/x/net/context"
 )
 
-// The IP adress of the test server
-const TestServerIP = "127.0.0.1"
-
-// The port that the server is listening on
-const TestServerPort = 8022
-
-// startTestServer starts a server listening at `TestServerIP` on
-// `TestServerPort`.  Need to later manually tear down the server.
-func startTestServer() (int, string, error) {
-	dir, err := ioutil.TempDir("", "TestServer")
-	if err != nil {
-		return 0, "", err
-	}
-
-	cmd := exec.Command("go",
-		"run",
-		fmt.Sprintf("%s/src/github.com/keybase/search-server/sserver/sserver/main.go", os.Getenv("GOPATH")),
-		fmt.Sprintf("--server_dir=%s", dir),
-		fmt.Sprintf("--port=%d", TestServerPort),
-		fmt.Sprintf("--ip_addr=%s", TestServerIP))
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	err = cmd.Start()
-	if err != nil {
-		os.RemoveAll(dir)
-		return 0, "", err
-	}
-
-	// Need to wait for the server to properly start
-	time.Sleep(time.Second * 10)
-
-	pgid, err := syscall.Getpgid(cmd.Process.Pid)
-	if err != nil {
-		os.RemoveAll(dir)
-		cmd.Process.Kill()
-		return 0, "", err
-	}
-
-	return pgid, "", nil
+// FakeServerClient implements a fake SearchServerInterface.
+type FakeServerClient struct {
+	docIDs      []sserver1.DocumentID // The list of document IDs added.
+	searchCount int                   // The number of times `SearchWord` has been called.  Needed to return the expected results.
 }
 
-// tearDownTestServer tears down the server process with `pgid`, and cleans up
-// the temporary directort `dir` for the test server.
-func tearDownTestServer(pgid int, dir string) error {
-	err := syscall.Kill(-pgid, syscall.SIGKILL)
-	if err != nil {
-		return err
+func (c *FakeServerClient) WriteIndex(_ context.Context, arg sserver1.WriteIndexArg) error {
+	c.docIDs = append(c.docIDs, arg.DocID)
+	return nil
+}
+
+func (c *FakeServerClient) RenameIndex(_ context.Context, arg sserver1.RenameIndexArg) error {
+	for i, docID := range c.docIDs {
+		if docID == arg.Orig {
+			c.docIDs[i] = arg.Curr
+			return nil
+		}
 	}
-	return os.RemoveAll(dir)
+	return os.ErrNotExist
+}
+
+func (c *FakeServerClient) DeleteIndex(_ context.Context, toDelete sserver1.DocumentID) error {
+	for i, docID := range c.docIDs {
+		if docID == toDelete {
+			c.docIDs = append(c.docIDs[:i], c.docIDs[i+1:]...)
+			return nil
+		}
+	}
+	return os.ErrNotExist
+}
+
+func (c *FakeServerClient) SearchWord(_ context.Context, trapdoors [][]byte) ([]sserver1.DocumentID, error) {
+	c.searchCount++
+	if c.searchCount == 1 {
+		expected := []sserver1.DocumentID{c.docIDs[1], c.docIDs[3]}
+		return expected, nil
+	} else if c.searchCount == 2 {
+		return nil, nil
+	} else {
+		return c.docIDs, nil
+	}
+}
+
+func (c *FakeServerClient) GetSalts(_ context.Context) ([][]byte, error) {
+	return nil, nil
+}
+
+func (c *FakeServerClient) GetSize(_ context.Context) (int64, error) {
+	return 10000, nil
 }
 
 // startTestClient creates an instance of a test client and returns a pointer to
@@ -74,7 +75,36 @@ func startTestClient(t *testing.T) (*Client, string) {
 		t.Fatalf("error when creating the test client directory: %s", err)
 	}
 
-	cli, err := CreateClient(TestServerIP, TestServerPort, []byte("This is a random string"), cliDir)
+	masterSecret := []byte("This is a simple test string")
+	searchCli := &FakeServerClient{docIDs: make([]sserver1.DocumentID, 0, 5)}
+
+	salts, err := searchCli.GetSalts(context.Background())
+	if err != nil {
+		t.Fatalf("Error when starting test Client, %s", err)
+	}
+
+	size, err := searchCli.GetSize(context.Background())
+	if err != nil {
+		t.Fatalf("Error when starting test Client: %s", err)
+	}
+
+	indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, salts, uint64(size))
+
+	var pathnameKey [32]byte
+	copy(pathnameKey[:], masterSecret[0:32])
+
+	absDir, err := filepath.Abs(cliDir)
+	if err != nil {
+		t.Fatalf("Error when starting test Client: %s", err)
+	}
+
+	cli := &Client{
+		searchCli:   searchCli,
+		directory:   absDir,
+		indexer:     indexer,
+		pathnameKey: pathnameKey,
+	}
+
 	if err != nil {
 		t.Fatalf("error when creating the client: %s", err)
 	}
@@ -115,7 +145,7 @@ func TestAddFile(t *testing.T) {
 		t.Fatalf("error when adding the file: %s", err)
 	}
 
-	if err := client.AddFile(filepath.Join(dir, "nonExisting")); err == nil {
+	if err := client.AddFile(filepath.Join(dir, "nonExisting")); !os.IsNotExist(err) {
 		t.Fatalf("no error returned for non-existing file")
 	}
 
@@ -125,8 +155,8 @@ func TestAddFile(t *testing.T) {
 	}
 	defer os.Remove(fileNotInDir.Name())
 
-	if err := client.AddFile(fileNotInDir.Name()); err == nil {
-		t.Fatalf("no error returned for file not in the client directory")
+	if err := client.AddFile(fileNotInDir.Name()); err.Error() != "target path not within base path" {
+		t.Fatalf("error not properly returned for file not in the client directory")
 	}
 }
 
@@ -151,14 +181,14 @@ func TestRenameFile(t *testing.T) {
 
 	// Doing the renaming second time should fail, as the orignal file no longer
 	// exists
-	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err == nil {
-		t.Fatalf("no error returned when renaming non-existing file")
+	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); !os.IsNotExist(err) {
+		t.Fatalf("error not properly returned when renaming non-existing file")
 	}
 }
 
 // TestDeleteFile tests the `DeleteFile` function.  Checks the indexes are
 // properly deleted and errors returned when necessary.
-func TestDeletFile(t *testing.T) {
+func TestDeleteFile(t *testing.T) {
 	client, dir := startTestClient(t)
 	defer os.RemoveAll(dir)
 
@@ -176,8 +206,8 @@ func TestDeletFile(t *testing.T) {
 	}
 
 	// Doing the deleting second time should fail, as the file no longer exists
-	if err := client.DeleteFile(filepath.Join(dir, "testDeleteFile")); err == nil {
-		t.Fatalf("no error returned when deleting non-existing file")
+	if err := client.DeleteFile(filepath.Join(dir, "testDeleteFile")); !os.IsNotExist(err) {
+		t.Fatalf("error not properly returned when deleting non-existing file")
 	}
 }
 
@@ -194,11 +224,11 @@ func TestSearchWord(t *testing.T) {
 		"This is yet another test file",
 		"This is the last test file",
 	}
-	filenames := make([]string, 5)
+	filenames := make([]string, len(contents))
 
-	for i := 0; i < len(contents); i++ {
+	for i, fileContent := range contents {
 		filenames[i] = filepath.Join(dir, "testSearchFile"+strconv.Itoa(i))
-		if err := ioutil.WriteFile(filenames[i], []byte(contents[i]), 0666); err != nil {
+		if err := ioutil.WriteFile(filenames[i], []byte(fileContent), 0666); err != nil {
 			t.Fatalf("error when writing test file: %s", err)
 		}
 		if err := client.AddFile(filenames[i]); err != nil {
@@ -233,24 +263,4 @@ func TestSearchWord(t *testing.T) {
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("incorrect search result: expected \"%s\" actual \"%s\"", expected, actual)
 	}
-}
-
-// TestMain sets up the test server and directory before the tests and tears
-// them down after the tests are completed.
-func TestMain(m *testing.M) {
-	pgid, dir, err := startTestServer()
-	if err != nil {
-		panic("error when starting the test server")
-	}
-
-	// Redirect the logs from the client to nil
-	os.Stderr = nil
-	exitCode := m.Run()
-
-	err = tearDownTestServer(pgid, dir)
-	if err != nil {
-		panic("error when tearing down the test server")
-	}
-
-	os.Exit(exitCode)
 }

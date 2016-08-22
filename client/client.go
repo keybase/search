@@ -14,17 +14,22 @@ import (
 	"golang.org/x/net/context"
 )
 
+// PathnameKeyType is the type of key used to encrypt the pathnames into
+// document IDs, and vice versa.
+type PathnameKeyType [32]byte
+
 // Client contains all the necessary information for a KBFS Search Client.
 type Client struct {
-	searchCli   sserver1.SearchServerClient   // The client that talks to the RPC Search Server.
-	directory   string                        // The directory where KBFS is mounted.
-	indexer     *libsearch.SecureIndexBuilder // The indexer for the client.
-	pathnameKey [32]byte                      // The key to encrypt and decrypt the pathnames to/from document IDs.
+	searchCli   sserver1.SearchServerInterface // The client that talks to the RPC Search Server.
+	directory   string                         // The directory where KBFS is mounted.
+	indexer     *libsearch.SecureIndexBuilder  // The indexer for the client.
+	pathnameKey PathnameKeyType                // The key to encrypt and decrypt the pathnames to/from document IDs.
 }
 
 // CreateClient creates a new `Client` instance with the parameters and returns
-// a pointer the the instance.  Returns an error on any failue.
-func CreateClient(ipAddr string, port int, masterSecret []byte, directory string) (*Client, error) {
+// a pointer the the instance.  Returns an error on any failure.
+func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []byte, directory string) (*Client, error) {
+	// TODO: Switch to TLS connection.
 	c, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ipAddr, port))
 	if err != nil {
 		return nil, err
@@ -33,12 +38,12 @@ func CreateClient(ipAddr string, port int, masterSecret []byte, directory string
 
 	searchCli := sserver1.SearchServerClient{Cli: rpc.NewClient(xp, nil)}
 
-	salts, err := searchCli.GetSalts(context.TODO())
+	salts, err := searchCli.GetSalts(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	size, err := searchCli.GetSize(context.TODO())
+	size, err := searchCli.GetSize(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +58,7 @@ func CreateClient(ipAddr string, port int, masterSecret []byte, directory string
 		return nil, err
 	}
 
-	cli := new(Client)
-	*cli = Client{
+	cli := &Client{
 		searchCli:   searchCli,
 		directory:   absDir,
 		indexer:     indexer,
