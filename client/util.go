@@ -81,7 +81,8 @@ func nextPowerOfTwo(n uint32) uint32 {
 // padPathname zero-pads the `pathname` and returns the padded pathname in a
 // byte slice.
 // NOTE: We use deterministic paddings instead of random ones, because we want
-// the encrpytion to be deterministic.
+// the encrpytion to be deterministic.  See the note in the comment section for
+// `pathnameToDocID`.
 func padPathname(pathname string) ([]byte, error) {
 	origLen := uint32(len(pathname))
 	paddedLen := nextPowerOfTwo(origLen)
