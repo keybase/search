@@ -20,6 +20,9 @@ const docIDNonceLength = 24
 const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 
 // pathnameToDocID encrypts a `pathname` to a document ID using `key`.
+// NOTE: Instead of using random nonce and padding, we need to use deterministic
+// ones, because we want the encryptions of the same pathname always yield the
+// same result.
 func pathnameToDocID(pathname string, key [32]byte) (sserver1.DocumentID, error) {
 	var nonce [docIDNonceLength]byte
 	cksum := sha256.Sum256([]byte(pathname))
