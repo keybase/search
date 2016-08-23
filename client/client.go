@@ -3,10 +3,10 @@ package client
 import (
 	"crypto/sha256"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	rpc "github.com/keybase/go-framed-msgpack-rpc"
 	"github.com/keybase/search/libsearch"
@@ -26,17 +26,54 @@ type Client struct {
 	pathnameKey PathnameKeyType                // The key to encrypt and decrypt the pathnames to/from document IDs.
 }
 
+type ClientRPC struct{}
+
+// HandlerName implements the ConnectionHandler interface.
+func (ClientRPC) HandlerName() string {
+	return "CryptoClient"
+}
+
+// OnConnect implements the ConnectionHandler interface.
+func (c *ClientRPC) OnConnect(ctx context.Context, conn *rpc.Connection, _ rpc.GenericClient, server *rpc.Server) error {
+	return nil
+}
+
+// OnConnectError implements the ConnectionHandler interface.
+func (c *ClientRPC) OnConnectError(err error, wait time.Duration) {
+}
+
+// OnDoCommandError implements the ConnectionHandler interface.
+func (c *ClientRPC) OnDoCommandError(err error, wait time.Duration) {
+}
+
+// OnDisconnected implements the ConnectionHandler interface.
+func (c *ClientRPC) OnDisconnected(_ context.Context, status rpc.DisconnectStatus) {
+}
+
+// ShouldRetry implements the ConnectionHandler interface.
+func (c *ClientRPC) ShouldRetry(rpcName string, err error) bool {
+	return false
+}
+
+// ShouldRetryOnConnect implements the ConnectionHandler interface.
+func (c *ClientRPC) ShouldRetryOnConnect(err error) bool {
+	return true
+}
+
 // CreateClient creates a new `Client` instance with the parameters and returns
 // a pointer the the instance.  Returns an error on any failure.
 func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []byte, directory string) (*Client, error) {
-	// TODO: Switch to TLS connection.
-	c, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ipAddr, port))
-	if err != nil {
-		return nil, err
-	}
-	xp := rpc.NewTransport(c, nil, nil)
+	uri, _ := rpc.ParseFMPURI(fmt.Sprintf("%s:%d", ipAddr, port))
+	conn := rpc.NewConnectionWithTransport(&ClientRPC{}, rpc.NewConnectionTransport(uri, nil, nil), nil, true, nil, nil, nil)
+	/*
+		// TODO: Switch to TLS connection.
+		c, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ipAddr, port))
+		if err != nil {
+			return nil, err
+		}
+		xp := rpc.NewTransport(c, nil, nil) */
 
-	searchCli := sserver1.SearchServerClient{Cli: rpc.NewClient(xp, nil)}
+	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 
 	salts, err := searchCli.GetSalts(ctx)
 	if err != nil {
