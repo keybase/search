@@ -1,7 +1,6 @@
 package client
 
 import (
-	"crypto/sha256"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,7 +9,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/keybase/search/libsearch"
 	sserver1 "github.com/keybase/search/protocol/sserver"
 	"golang.org/x/net/context"
 )
@@ -78,35 +76,9 @@ func startTestClient(t *testing.T) (*Client, string) {
 	masterSecret := []byte("This is a simple test string")
 	searchCli := &FakeServerClient{docIDs: make([]sserver1.DocumentID, 0, 5)}
 
-	salts, err := searchCli.GetSalts(context.Background())
+	cli, err := createClientWithClient(context.Background(), searchCli, masterSecret, cliDir)
 	if err != nil {
-		t.Fatalf("Error when starting test Client, %s", err)
-	}
-
-	size, err := searchCli.GetSize(context.Background())
-	if err != nil {
-		t.Fatalf("Error when starting test Client: %s", err)
-	}
-
-	indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, salts, uint64(size))
-
-	var pathnameKey [32]byte
-	copy(pathnameKey[:], masterSecret[0:32])
-
-	absDir, err := filepath.Abs(cliDir)
-	if err != nil {
-		t.Fatalf("Error when starting test Client: %s", err)
-	}
-
-	cli := &Client{
-		searchCli:   searchCli,
-		directory:   absDir,
-		indexer:     indexer,
-		pathnameKey: pathnameKey,
-	}
-
-	if err != nil {
-		t.Fatalf("error when creating the client: %s", err)
+		t.Fatalf("Error when creating the client: %s", err)
 	}
 
 	return cli, cliDir

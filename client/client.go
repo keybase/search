@@ -25,7 +25,6 @@ type Client struct {
 	directory   string                         // The directory where KBFS is mounted.
 	indexer     *libsearch.SecureIndexBuilder  // The indexer for the client.
 	pathnameKey PathnameKeyType                // The key to encrypt and decrypt the pathnames to/from document IDs.
-	conn        *rpc.Connection
 }
 
 // HandlerName implements the ConnectionHandler interface.
@@ -60,14 +59,14 @@ func (c *Client) ShouldRetryOnConnect(err error) bool {
 	return false
 }
 
+// logOutput is a simple log output that prints to the console.
 type logOutput struct {
 }
 
 func (l logOutput) log(ch string, fmts string, args []interface{}) {
 	fmts = fmt.Sprintf("[%s] %s", ch, fmts)
-	//fmt.Println(fmts, args)
+	fmt.Println(fmts, args)
 }
-
 func (l logOutput) Info(fmt string, args ...interface{})    { l.log("I", fmt, args) }
 func (l logOutput) Error(fmt string, args ...interface{})   { l.log("E", fmt, args) }
 func (l logOutput) Debug(fmt string, args ...interface{})   { l.log("D", fmt, args) }
@@ -81,21 +80,21 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 // CreateClient creates a new `Client` instance with the parameters and returns
 // a pointer the the instance.  Returns an error on any failure.
 func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []byte, directory string) (*Client, error) {
+	// TODO: Switch to TLS connection.
 	uri, err := rpc.ParseFMPURI(fmt.Sprintf("fmprpc://%s:%d", ipAddr, port))
 	if err != nil {
 		return nil, err
 	}
 	conn := rpc.NewConnectionWithTransport(&Client{}, rpc.NewConnectionTransport(uri, rpc.NewSimpleLogFactory(rpc.SimpleLogOutput{}, nil), libkb.WrapError), libkb.ErrorUnwrapper{}, true, libkb.WrapError, logOutput{}, logTags)
-	/*
-		// TODO: Switch to TLS connection.
-		c, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ipAddr, port))
-		if err != nil {
-			return nil, err
-		}
-		xp := rpc.NewTransport(c, nil, nil) */
 
 	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 
+	return createClientWithClient(ctx, searchCli, masterSecret, directory)
+}
+
+// createClient creates a new `Client` with a given SearchServerInterface.
+// Should only be used internally and for tests.
+func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServerInterface, masterSecret []byte, directory string) (*Client, error) {
 	salts, err := searchCli.GetSalts(ctx)
 	if err != nil {
 		return nil, err
@@ -121,10 +120,7 @@ func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []b
 		directory:   absDir,
 		indexer:     indexer,
 		pathnameKey: pathnameKey,
-		conn:        conn,
 	}
-
-	fmt.Println("Finishes!")
 
 	return cli, nil
 }
@@ -228,9 +224,4 @@ func (c *Client) SearchWord(word string) ([]string, error) {
 
 	sort.Strings(filenames)
 	return filenames, nil
-}
-
-func (c *Client) Shutdown() {
-	c.conn.Shutdown()
-	fmt.Printf("Connection %s shut down.\n", c.conn.IsConnected())
 }
