@@ -21,7 +21,7 @@ const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 
 // pathnameToDocID encrypts a `pathname` to a document ID using `key`.
 // NOTE: Instead of using random nonce and padding, we need to use deterministic
-// ones, because we want the encryptions of the same pathname always yield the
+// ones, because we want the encryptions of the same pathname to always yield the
 // same result.
 func pathnameToDocID(pathname string, key [32]byte) (sserver1.DocumentID, error) {
 	var nonce [docIDNonceLength]byte
@@ -81,7 +81,7 @@ func nextPowerOfTwo(n uint32) uint32 {
 // padPathname zero-pads the `pathname` and returns the padded pathname in a
 // byte slice.
 // NOTE: We use deterministic paddings instead of random ones, because we want
-// the encrpytion to be deterministic.  See the note in the comment section for
+// the encryption to be deterministic.  See the note in the comment section for
 // `pathnameToDocID`.
 func padPathname(pathname string) ([]byte, error) {
 	origLen := uint32(len(pathname))
@@ -131,7 +131,7 @@ func relPathStrict(basepath, targpath string) (string, error) {
 		return "", err
 	}
 
-	if !strings.HasPrefix(absTargpath, absBasepath+"/") {
+	if !strings.HasPrefix(absTargpath, absBasepath+string(filepath.Separator)) {
 		return "", errors.New("target path not within base path")
 	}
 
