@@ -28,20 +28,18 @@ func (c *FakeServerClient) RenameIndex(_ context.Context, arg sserver1.RenameInd
 	for i, docID := range c.docIDs {
 		if docID == arg.Orig {
 			c.docIDs[i] = arg.Curr
-			return nil
 		}
 	}
-	return os.ErrNotExist
+	return nil
 }
 
 func (c *FakeServerClient) DeleteIndex(_ context.Context, toDelete sserver1.DocumentID) error {
 	for i, docID := range c.docIDs {
 		if docID == toDelete {
 			c.docIDs = append(c.docIDs[:i], c.docIDs[i+1:]...)
-			return nil
 		}
 	}
-	return os.ErrNotExist
+	return nil
 }
 
 func (c *FakeServerClient) SearchWord(_ context.Context, trapdoors [][]byte) ([]sserver1.DocumentID, error) {
@@ -151,10 +149,10 @@ func TestRenameFile(t *testing.T) {
 		t.Fatalf("error when renaming file: %s", err)
 	}
 
-	// Doing the renaming second time should fail, as the orignal file no longer
-	// exists
-	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); !os.IsNotExist(err) {
-		t.Fatalf("error not properly returned when renaming non-existing file")
+	// Doing the renaming second time should still succeed, even though nothing
+	// real has been done.
+	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err != nil {
+		t.Fatalf("error when renaming a non-existing file: %s", err)
 	}
 }
 
@@ -177,9 +175,9 @@ func TestDeleteFile(t *testing.T) {
 		t.Fatalf("error when deleting file: %s", err)
 	}
 
-	// Doing the deleting second time should fail, as the file no longer exists
-	if err := client.DeleteFile(filepath.Join(dir, "testDeleteFile")); !os.IsNotExist(err) {
-		t.Fatalf("error not properly returned when deleting non-existing file")
+	// Doing the deleting second time should still succeed.
+	if err := client.DeleteFile(filepath.Join(dir, "testDeleteFile")); err != nil {
+		t.Fatalf("error when deleting a non-existing file: %s", err)
 	}
 }
 
