@@ -19,6 +19,10 @@ type RenameIndexArg struct {
 	Curr DocumentID `codec:"curr" json:"curr"`
 }
 
+type DeleteIndexArg struct {
+	DocID DocumentID `codec:"docID" json:"docID"`
+}
+
 type SearchWordArg struct {
 	Trapdoors [][]byte `codec:"trapdoors" json:"trapdoors"`
 }
@@ -26,11 +30,16 @@ type SearchWordArg struct {
 type GetSaltsArg struct {
 }
 
+type GetSizeArg struct {
+}
+
 type SearchServerInterface interface {
 	WriteIndex(context.Context, WriteIndexArg) error
 	RenameIndex(context.Context, RenameIndexArg) error
+	DeleteIndex(context.Context, DocumentID) error
 	SearchWord(context.Context, [][]byte) ([]DocumentID, error)
 	GetSalts(context.Context) ([][]byte, error)
+	GetSize(context.Context) (int64, error)
 }
 
 func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
@@ -69,6 +78,22 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 				},
 				MethodType: rpc.MethodCall,
 			},
+			"deleteIndex": {
+				MakeArg: func() interface{} {
+					ret := make([]DeleteIndexArg, 1)
+					return &ret
+				},
+				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
+					typedArgs, ok := args.(*[]DeleteIndexArg)
+					if !ok {
+						err = rpc.NewTypeError((*[]DeleteIndexArg)(nil), args)
+						return
+					}
+					err = i.DeleteIndex(ctx, (*typedArgs)[0].DocID)
+					return
+				},
+				MethodType: rpc.MethodCall,
+			},
 			"searchWord": {
 				MakeArg: func() interface{} {
 					ret := make([]SearchWordArg, 1)
@@ -96,6 +121,17 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 				},
 				MethodType: rpc.MethodCall,
 			},
+			"getSize": {
+				MakeArg: func() interface{} {
+					ret := make([]GetSizeArg, 1)
+					return &ret
+				},
+				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
+					ret, err = i.GetSize(ctx)
+					return
+				},
+				MethodType: rpc.MethodCall,
+			},
 		},
 	}
 }
@@ -114,6 +150,12 @@ func (c SearchServerClient) RenameIndex(ctx context.Context, __arg RenameIndexAr
 	return
 }
 
+func (c SearchServerClient) DeleteIndex(ctx context.Context, docID DocumentID) (err error) {
+	__arg := DeleteIndexArg{DocID: docID}
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.deleteIndex", []interface{}{__arg}, nil)
+	return
+}
+
 func (c SearchServerClient) SearchWord(ctx context.Context, trapdoors [][]byte) (res []DocumentID, err error) {
 	__arg := SearchWordArg{Trapdoors: trapdoors}
 	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.searchWord", []interface{}{__arg}, &res)
@@ -122,5 +164,10 @@ func (c SearchServerClient) SearchWord(ctx context.Context, trapdoors [][]byte) 
 
 func (c SearchServerClient) GetSalts(ctx context.Context) (res [][]byte, err error) {
 	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSalts", []interface{}{GetSaltsArg{}}, &res)
+	return
+}
+
+func (c SearchServerClient) GetSize(ctx context.Context) (res int64, err error) {
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSize", []interface{}{GetSizeArg{}}, &res)
 	return
 }
