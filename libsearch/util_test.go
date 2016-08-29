@@ -86,6 +86,8 @@ func TestReadInt(t *testing.T) {
 	}
 }
 
+// TestWriteFileAtomic tests the `WriteFileAtomic` function.  Checks that the
+// files are properly written.
 func TestWriteFileAtomic(t *testing.T) {
 	tmpFile, err := ioutil.TempFile("", "writeFileTest")
 	if err != nil {
@@ -107,4 +109,24 @@ func TestWriteFileAtomic(t *testing.T) {
 	if string(contentRead) != contentString {
 		t.Fatalf("incorrect content is written to the file")
 	}
+}
+
+// testNormalizeKeywordHelper is the helper function for `TestNormalizeKeyword`.
+// Checks that calling `NormalizeKeyword` with `original` yields `expected` as
+// the result.
+func testNormalizeKeywordHelper(t *testing.T, original, expected string) {
+	actual := NormalizeKeyword(original)
+	if actual != expected {
+		t.Fatalf("incorrect result for NormalizeKeyword(%s): expected \"%s\", actual \"%s\"", original, expected, actual)
+	}
+}
+
+// TestNormalizeKeyword tests the `NormalizeKeyword` function.  Checks that the
+// desired normalized strings are returned.
+func TestNormalizeKeyword(t *testing.T) {
+	testNormalizeKeywordHelper(t, "", "") // Makes sure that empty strings woudln't crash
+	testNormalizeKeywordHelper(t, ".,;'[]'", "")
+	testNormalizeKeywordHelper(t, "iCe-CREAm", "icecream")
+	testNormalizeKeywordHelper(t, "Yoo!!!!!!", "yoo")
+	testNormalizeKeywordHelper(t, "SHA-256", "sha256")
 }

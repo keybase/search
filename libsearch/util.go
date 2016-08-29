@@ -8,6 +8,8 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"regexp"
+	"strings"
 )
 
 // GenerateSalts generates `numKeys` salts with length `lenSalt`.  Returns an
@@ -79,4 +81,13 @@ func WriteFileAtomic(pathname string, content []byte) error {
 
 	err = os.Rename(tmpFile.Name(), pathname)
 	return err
+}
+
+// NormalizeKeyword normalizes a keyword for adding into the index by converting
+// it to lower case and keeping only the alphanumeric characters.
+func NormalizeKeyword(keyword string) string {
+	lowerKeyword := strings.ToLower(keyword)
+
+	re := regexp.MustCompile("[^a-z0-9]")
+	return re.ReplaceAllString(lowerKeyword, "")
 }
