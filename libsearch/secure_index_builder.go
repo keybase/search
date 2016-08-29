@@ -56,6 +56,8 @@ func (sib *SecureIndexBuilder) buildBloomFilter(nonce uint64, document *os.File)
 	words := make(map[string]bool)
 	for scanner.Scan() {
 		word := scanner.Text()
+		word = NormalizeKeyword(word)
+
 		if words[word] {
 			continue
 		}
@@ -99,5 +101,5 @@ func (sib *SecureIndexBuilder) BuildSecureIndex(document *os.File, fileLen int64
 // ComputeTrapdoors computes the trapdoor values for `word`.  This acts as the
 // public getter for the trapdoorFunc field of SecureIndexBuilder.
 func (sib *SecureIndexBuilder) ComputeTrapdoors(word string) [][]byte {
-	return sib.trapdoorFunc(word)
+	return sib.trapdoorFunc(NormalizeKeyword(word))
 }

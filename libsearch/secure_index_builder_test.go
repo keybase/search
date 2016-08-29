@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/jxguan/go-datastructures/bitarray"
@@ -86,8 +85,8 @@ func TestBuildBloomFilter(t *testing.T) {
 	}
 	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	doc, err := ioutil.TempFile("", "bfTest")
-	docContent := "This is a test file. It has a pretty random content."
-	docWords := strings.Split(docContent, " ")
+	docContent := "This is a TOP-NOTCH test file."
+	docWords := []string{"this", "is", "a", "topnotch", "test", "file"}
 	nonce := uint64(42)
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestBuildBloomFilter`")
@@ -117,7 +116,7 @@ func TestBuildBloomFilter(t *testing.T) {
 	if bf1.Equals(bf3) {
 		t.Fatalf("the same document with different ids produces the same bloom filter")
 	}
-	if count != int64(len(docWords)-1) {
+	if count != int64(len(docWords)) {
 		t.Fatalf("the number of unique words is not correct")
 	}
 	for _, word := range docWords {
@@ -163,8 +162,8 @@ func TestBuildSecureIndex(t *testing.T) {
 	}
 	sib := CreateSecureIndexBuilder(sha256.New, []byte("test"), salts, size)
 	doc, err := ioutil.TempFile("", "indexTest")
-	docContent := "This is a test file. It has a pretty random content."
-	docWords := strings.Split(docContent, " ")
+	docContent := "This is a TOP-NOTCH test file."
+	docWords := []string{"this", "is", "a", "topnotch", "test", "file"}
 	if err != nil {
 		t.Errorf("cannot create the temporary test file for `TestBuildSecureIndex`")
 	}
