@@ -61,9 +61,13 @@ func (c *Client) ShouldRetryOnConnect(err error) bool {
 
 // logOutput is a simple log output that prints to the console.
 type logOutput struct {
+	verbose bool // Whether log outputs should be printed out
 }
 
 func (l logOutput) log(ch string, fmts string, args []interface{}) {
+	if !l.verbose {
+		return
+	}
 	fmts = fmt.Sprintf("[%s] %s", ch, fmts)
 	fmt.Println(fmts, args)
 }
@@ -79,13 +83,13 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 
 // CreateClient creates a new `Client` instance with the parameters and returns
 // a pointer the the instance.  Returns an error on any failure.
-func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []byte, directory string) (*Client, error) {
+func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []byte, directory string, verbose bool) (*Client, error) {
 	// TODO: Switch to TLS connection.
 	uri, err := rpc.ParseFMPURI(fmt.Sprintf("fmprpc://%s:%d", ipAddr, port))
 	if err != nil {
 		return nil, err
 	}
-	conn := rpc.NewConnectionWithTransport(&Client{}, rpc.NewConnectionTransport(uri, rpc.NewSimpleLogFactory(rpc.SimpleLogOutput{}, nil), libkb.WrapError), libkb.ErrorUnwrapper{}, true, libkb.WrapError, logOutput{}, logTags)
+	conn := rpc.NewConnectionWithTransport(&Client{}, rpc.NewConnectionTransport(uri, rpc.NewSimpleLogFactory(rpc.SimpleLogOutput{}, nil), libkb.WrapError), libkb.ErrorUnwrapper{}, true, libkb.WrapError, logOutput{verbose: verbose}, logTags)
 
 	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 

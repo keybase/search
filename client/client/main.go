@@ -21,6 +21,7 @@ var clientDirectory = flag.String("client_dir", "/keybase/private/jiaxin", "the 
 var port = flag.Int("port", 8022, "the port that the search server is listening on")
 var ipAddr = flag.String("ip_addr", "127.0.0.1", "the IP address that the search server is listening on")
 var lenMS = flag.Int("len_ms", 64, "the length of the master secret")
+var verbose = flag.Bool("v", false, "whether log outputs should be printed out")
 
 // addAllFiles adds all the non-hidden files that have been modified after
 // `lastIndexed`.
