@@ -129,4 +129,6 @@ func TestNormalizeKeyword(t *testing.T) {
 	testNormalizeKeywordHelper(t, "iCe-CREAm", "icecream")
 	testNormalizeKeywordHelper(t, "Yoo!!!!!!", "yoo")
 	testNormalizeKeywordHelper(t, "SHA-256", "sha256")
+	testNormalizeKeywordHelper(t, "Español!", "español")
+	testNormalizeKeywordHelper(t, "苟利国家生死以！", "苟利国家生死以")
 }

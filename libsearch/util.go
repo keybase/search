@@ -8,8 +8,8 @@ import (
 	"math"
 	"math/big"
 	"os"
-	"regexp"
 	"strings"
+	"unicode"
 )
 
 // GenerateSalts generates `numKeys` salts with length `lenSalt`.  Returns an
@@ -87,7 +87,13 @@ func WriteFileAtomic(pathname string, content []byte) error {
 // it to lower case and keeping only the alphanumeric characters.
 func NormalizeKeyword(keyword string) string {
 	lowerKeyword := strings.ToLower(keyword)
+	normalizedKeyword := make([]rune, 0, len(lowerKeyword))
 
-	re := regexp.MustCompile("[^a-z0-9]")
-	return re.ReplaceAllString(lowerKeyword, "")
+	for _, c := range lowerKeyword {
+		if unicode.IsDigit(c) || unicode.IsLetter(c) {
+			normalizedKeyword = append(normalizedKeyword, c)
+		}
+	}
+
+	return string(normalizedKeyword)
 }
