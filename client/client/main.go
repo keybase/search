@@ -20,6 +20,7 @@ var ipAddr = flag.String("ip_addr", "127.0.0.1", "the IP address that the search
 // periodicAdd scans the files in the client directory every minute and adds
 // their indexes to the search server.
 func periodicAdd(cli *client.Client) {
+	currTime := time.Now()
 	for {
 		files, _ := ioutil.ReadDir(*clientDirectory)
 		for _, file := range files {
