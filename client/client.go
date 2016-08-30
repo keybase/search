@@ -89,7 +89,8 @@ func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []b
 	if err != nil {
 		return nil, err
 	}
-	conn := rpc.NewConnectionWithTransport(&Client{}, rpc.NewConnectionTransport(uri, rpc.NewSimpleLogFactory(rpc.SimpleLogOutput{}, nil), libkb.WrapError), libkb.ErrorUnwrapper{}, true, libkb.WrapError, logOutput{verbose: verbose}, logTags)
+
+	conn := rpc.NewConnectionWithTransport(&Client{}, rpc.NewConnectionTransport(uri, rpc.NewSimpleLogFactory(logOutput{verbose: verbose}, nil), libkb.WrapError), libkb.ErrorUnwrapper{}, true, libkb.WrapError, logOutput{verbose: verbose}, logTags)
 
 	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 

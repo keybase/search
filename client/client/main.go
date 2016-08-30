@@ -129,7 +129,7 @@ func main() {
 	}
 
 	// Initiate the search client
-	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, masterSecret, *clientDirectory)
+	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, masterSecret, *clientDirectory, *verbose)
 	if err != nil {
 		fmt.Printf("Cannot initiate the client: %s\n", err)
 		os.Exit(1)
