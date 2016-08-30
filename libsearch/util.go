@@ -8,7 +8,6 @@ import (
 	"math"
 	"math/big"
 	"os"
-	"strings"
 	"unicode"
 )
 
@@ -86,12 +85,11 @@ func WriteFileAtomic(pathname string, content []byte) error {
 // NormalizeKeyword normalizes a keyword for adding into the index by converting
 // it to lower case and keeping only the alphanumeric characters.
 func NormalizeKeyword(keyword string) string {
-	lowerKeyword := strings.ToLower(keyword)
-	normalizedKeyword := make([]rune, 0, len(lowerKeyword))
+	normalizedKeyword := make([]rune, 0, len(keyword))
 
-	for _, c := range lowerKeyword {
+	for _, c := range keyword {
 		if unicode.IsDigit(c) || unicode.IsLetter(c) {
-			normalizedKeyword = append(normalizedKeyword, c)
+			normalizedKeyword = append(normalizedKeyword, unicode.ToLower(c))
 		}
 	}
 
