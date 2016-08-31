@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/keybase/client/go/libkb"
@@ -61,9 +63,13 @@ func (c *Client) ShouldRetryOnConnect(err error) bool {
 
 // logOutput is a simple log output that prints to the console.
 type logOutput struct {
+	verbose bool // Whether log outputs should be printed out
 }
 
 func (l logOutput) log(ch string, fmts string, args []interface{}) {
+	if !l.verbose {
+		return
+	}
 	fmts = fmt.Sprintf("[%s] %s", ch, fmts)
 	fmt.Println(fmts, args)
 }
@@ -79,13 +85,14 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 
 // CreateClient creates a new `Client` instance with the parameters and returns
 // a pointer the the instance.  Returns an error on any failure.
-func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []byte, directory string) (*Client, error) {
+func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []byte, directory string, verbose bool) (*Client, error) {
 	// TODO: Switch to TLS connection.
 	uri, err := rpc.ParseFMPURI(fmt.Sprintf("fmprpc://%s:%d", ipAddr, port))
 	if err != nil {
 		return nil, err
 	}
-	conn := rpc.NewConnectionWithTransport(&Client{}, rpc.NewConnectionTransport(uri, rpc.NewSimpleLogFactory(rpc.SimpleLogOutput{}, nil), libkb.WrapError), libkb.ErrorUnwrapper{}, true, libkb.WrapError, logOutput{}, logTags)
+
+	conn := rpc.NewConnectionWithTransport(&Client{}, rpc.NewConnectionTransport(uri, rpc.NewSimpleLogFactory(logOutput{verbose: verbose}, nil), libkb.WrapError), libkb.ErrorUnwrapper{}, true, libkb.WrapError, logOutput{verbose: verbose}, logTags)
 
 	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 
@@ -223,5 +230,26 @@ func (c *Client) SearchWord(word string) ([]string, error) {
 	}
 
 	sort.Strings(filenames)
+	return filenames, nil
+}
+
+// SearchWordStrict is similar to `SearchWord`, but it uses a `grep` command to
+// eliminate the possible false positives.  The `word` must have an exact match
+// (cases ignored) in the file.
+func (c *Client) SearchWordStrict(word string) ([]string, error) {
+	files, err := c.SearchWord(word)
+	if err != nil {
+		return nil, err
+	}
+	args := make([]string, len(files)+2)
+	args[0] = "-ilZw"
+	args[1] = word
+	copy(args[2:], files[:])
+	output, _ := exec.Command("grep", args...).Output()
+	filenames := strings.Split(string(output), "\x00")
+	filenames = filenames[:len(filenames)-1]
+
+	sort.Strings(filenames)
+
 	return filenames, nil
 }

@@ -181,9 +181,9 @@ func TestDeleteFile(t *testing.T) {
 	}
 }
 
-// TestSearchWord tests the `SearchWord` function.  Checks that the correct set
-// of filenames are returned.
-func TestSearchWord(t *testing.T) {
+// testSearchWordHelper tests the provided 'searchFunc' function.  Checks that
+// the correct set of filenames are returned.
+func testSearchWordHelper(t *testing.T, searchFunc func(*Client, string) ([]string, error)) {
 	client, dir := startTestClient(t)
 	defer os.RemoveAll(dir)
 
@@ -208,7 +208,7 @@ func TestSearchWord(t *testing.T) {
 
 	expected := []string{filenames[1], filenames[3]}
 	sort.Strings(expected)
-	actual, err := client.SearchWord("another")
+	actual, err := searchFunc(client, "another")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
@@ -216,7 +216,7 @@ func TestSearchWord(t *testing.T) {
 		t.Fatalf("incorrect search result: expected \"%s\" actual \"%s\"", expected, actual)
 	}
 
-	empty, err := client.SearchWord("non-existing")
+	empty, err := searchFunc(client, "non-existing")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
@@ -226,11 +226,33 @@ func TestSearchWord(t *testing.T) {
 
 	expected = filenames
 	sort.Strings(expected)
-	actual, err = client.SearchWord("file")
+	actual, err = searchFunc(client, "file")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("incorrect search result: expected \"%s\" actual \"%s\"", expected, actual)
 	}
+}
+
+// searchWordWrapper is the wrapper function for `SearchWord`.
+func searchWordWrapper(client *Client, word string) ([]string, error) {
+	return client.SearchWord(word)
+}
+
+// searchWordStrictWrapper is the wrapper function for `SearchWordStrict`.
+func searchWordStrictWrapper(client *Client, word string) ([]string, error) {
+	return client.SearchWordStrict(word)
+}
+
+// TestSearchWord tests the 'SearchWord' function.  Checks that the correct set
+// of filenames are returned.
+func TestSearchWord(t *testing.T) {
+	testSearchWordHelper(t, searchWordWrapper)
+}
+
+// TestSearchWord tests the 'SearchWordStrict' function.  Checks that the
+// correct set of filenames are returned.
+func TestSearchWordStrict(t *testing.T) {
+	testSearchWordHelper(t, searchWordStrictWrapper)
 }
