@@ -47,35 +47,26 @@ func periodicAdd(cli *client.Client) {
 		currTime := time.Now()
 
 		var lastIndexed time.Time
-		f, err := os.OpenFile(filepath.Join(*clientDirectory, ".search_kbfs_timestamp"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
 
+		lastIndexedJSON, err := ioutil.ReadFile(filepath.Join(*clientDirectory, ".search_kbfs_timestamp"))
 		if err == nil {
-			// Write the current time to the timestamp
-			currTimeJSON, err := currTime.MarshalJSON()
-			if err != nil {
-				panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
-			}
-
-			_, err = f.Write(currTimeJSON)
-			if err != nil {
-				panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
-			}
-			f.Close()
-		} else if os.IsExist(err) {
-			// Read the last indexed time from the timestamp file
-			lastIndexedJSON, err := ioutil.ReadFile(filepath.Join(*clientDirectory, ".search_kbfs_timestamp"))
-			if err != nil {
-				panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
-			}
 			if err := lastIndexed.UnmarshalJSON(lastIndexedJSON); err != nil {
 				panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
 			}
-		} else {
+		} else if !os.IsNotExist(err) {
 			panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
 		}
 
 		if err := filepath.Walk(*clientDirectory, addAllFiles(cli, lastIndexed)); err != nil {
 			panic(fmt.Sprintf("Error when indexing the files: %s", err))
+		}
+
+		currTimeJSON, err := currTime.MarshalJSON()
+		if err != nil {
+			panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
+		}
+		if err := ioutil.WriteFile(filepath.Join(*clientDirectory, ".search_kbfs_timestamp"), currTimeJSON, 0666); err != nil {
+			panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
 		}
 
 		if *verbose {

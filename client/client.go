@@ -234,7 +234,8 @@ func (c *Client) SearchWord(word string) ([]string, error) {
 }
 
 // SearchWordStrict is similar to `SearchWord`, but it uses a `grep` command to
-// eliminate the possible false positives.
+// eliminate the possible false positives.  The `word` must have an exact match
+// (cases ignored) in the file.
 func (c *Client) SearchWordStrict(word string) ([]string, error) {
 	files, err := c.SearchWord(word)
 	if err != nil {
