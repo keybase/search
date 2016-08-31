@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -125,6 +124,11 @@ func fetchMasterSecret() ([]byte, error) {
 // performSearchWord searched for the word `keyword` on `cli`, and print out the
 // results.
 func performSearchWord(cli *client.Client, keyword string) {
+	filenames, err := cli.SearchWordStrict(keyword)
+	if err != nil {
+		fmt.Printf("Error when searching word %s: %s", keyword, err)
+		return
+	}
 	if len(filenames) == 0 {
 		fmt.Printf("No file contains the word \"%s\".\n", keyword)
 	} else {
