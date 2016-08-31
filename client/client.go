@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/keybase/client/go/libkb"
@@ -228,5 +230,25 @@ func (c *Client) SearchWord(word string) ([]string, error) {
 	}
 
 	sort.Strings(filenames)
+	return filenames, nil
+}
+
+// SearchWordStrict is similar to `SearchWord`, but it uses a `grep` command to
+// eliminate the possible false positives.
+func (c *Client) SearchWordStrict(word string) ([]string, error) {
+	files, err := c.SearchWord(word)
+	if err != nil {
+		return nil, err
+	}
+	args := make([]string, len(files)+2)
+	args[0] = "-ilZw"
+	args[1] = word
+	copy(args[2:], files[:])
+	output, _ := exec.Command("grep", args...).Output()
+	filenames := strings.Split(string(output), "\x00")
+	filenames = filenames[:len(filenames)-1]
+
+	sort.Strings(filenames)
+
 	return filenames, nil
 }

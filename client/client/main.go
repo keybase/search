@@ -32,7 +32,9 @@ func addAllFiles(cli *client.Client, lastIndexed time.Time) filepath.WalkFunc {
 		} else if !info.IsDir() && info.Name()[0] != '.' {
 			if info.ModTime().After(lastIndexed) {
 				cli.AddFile(path)
-				fmt.Println("Added:", path)
+				if *verbose {
+					fmt.Println("Added:", path)
+				}
 			}
 		}
 		return nil
@@ -46,12 +48,30 @@ func periodicAdd(cli *client.Client) {
 		currTime := time.Now()
 
 		var lastIndexed time.Time
-		lastIndexedJSON, err := ioutil.ReadFile(filepath.Join(*clientDirectory, ".timestamp"))
+		f, err := os.OpenFile(filepath.Join(*clientDirectory, ".search_kbfs_timestamp"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+
 		if err == nil {
-			if parseErr := lastIndexed.UnmarshalJSON(lastIndexedJSON); parseErr != nil {
+			// Write the current time to the timestamp
+			currTimeJSON, err := currTime.MarshalJSON()
+			if err != nil {
+				panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
+			}
+
+			_, err = f.Write(currTimeJSON)
+			if err != nil {
+				panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
+			}
+			f.Close()
+		} else if os.IsExist(err) {
+			// Read the last indexed time from the timestamp file
+			lastIndexedJSON, err := ioutil.ReadFile(filepath.Join(*clientDirectory, ".search_kbfs_timestamp"))
+			if err != nil {
 				panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
 			}
-		} else if !os.IsNotExist(err) {
+			if err := lastIndexed.UnmarshalJSON(lastIndexedJSON); err != nil {
+				panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
+			}
+		} else {
 			panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
 		}
 
@@ -59,14 +79,9 @@ func periodicAdd(cli *client.Client) {
 			panic(fmt.Sprintf("Error when indexing the files: %s", err))
 		}
 
-		currTimeJSON, err := currTime.MarshalJSON()
-		if err != nil {
-			panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
+		if *verbose {
+			fmt.Printf("\n[%s]: All files Indexed\n", currTime.Format("2006-01-02 15:04:05"))
 		}
-
-		ioutil.WriteFile(filepath.Join(*clientDirectory, ".timestamp"), currTimeJSON, 0666)
-
-		fmt.Printf("\n[%s]: All files Indexed\n", currTime.Format("2006-01-02 15:04:05"))
 		time.Sleep(time.Second * 60)
 	}
 }
@@ -76,38 +91,40 @@ func periodicAdd(cli *client.Client) {
 // directory.  An error is returned if the there is an issue accessing the
 // master secret or the master secret is of the wrong length.
 func fetchMasterSecret() ([]byte, error) {
-	masterSecret, err := ioutil.ReadFile(filepath.Join(*clientDirectory, ".secret"))
-	if os.IsNotExist(err) {
+	var masterSecret []byte
+
+	f, err := os.OpenFile(filepath.Join(*clientDirectory, ".search_kbfs_secret"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+
+	if err == nil {
+		defer f.Close()
+		// Generate a random master secret and write it to file
 		masterSecret = make([]byte, *lenMS)
 		if _, err := rand.Read(masterSecret); err != nil {
 			return nil, err
 		}
-		if err := ioutil.WriteFile(filepath.Join(*clientDirectory, ".secret"), masterSecret, 0666); err != nil {
+
+		_, err = f.Write(masterSecret)
+		if err != nil {
 			return nil, err
 		}
-	} else if err != nil {
+	} else if os.IsExist(err) {
+		// Read the master secret from file
+		masterSecret, err = ioutil.ReadFile(filepath.Join(*clientDirectory, ".search_kbfs_secret"))
+		if err != nil {
+			return nil, err
+		}
+		if len(masterSecret) != *lenMS {
+			return nil, errors.New("Invalid master secret length")
+		}
+	} else {
 		return nil, err
-	} else if len(masterSecret) != *lenMS {
-		return nil, errors.New("Invalid master secret length")
 	}
 	return masterSecret, nil
 }
 
-// performSearchWord searched fot the word `keyword` on `cli`, and print out the
+// performSearchWord searched for the word `keyword` on `cli`, and print out the
 // results.
 func performSearchWord(cli *client.Client, keyword string) {
-	files, err := cli.SearchWord(keyword)
-	if err != nil {
-		fmt.Printf("Error when searching word %s: %s", keyword, err)
-		return
-	}
-	args := make([]string, len(files)+2)
-	args[0] = "-ilZw"
-	args[1] = keyword
-	copy(args[2:], files[:])
-	output, _ := exec.Command("grep", args...).Output()
-	filenames := strings.Split(string(output), "\x00")
-	filenames = filenames[:len(filenames)-1]
 	if len(filenames) == 0 {
 		fmt.Printf("No file contains the word \"%s\".\n", keyword)
 	} else {
@@ -116,6 +133,7 @@ func performSearchWord(cli *client.Client, keyword string) {
 			fmt.Printf("\t%s\n", filename)
 		}
 	}
+	fmt.Println()
 }
 
 func main() {
@@ -131,7 +149,7 @@ func main() {
 	// Initiate the search client
 	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, masterSecret, *clientDirectory, *verbose)
 	if err != nil {
-		fmt.Printf("Cannot initiate the client: %s\n", err)
+		fmt.Printf("Cannot initialize the client: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -140,12 +158,15 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		fmt.Print("Please enter word to search for (enter to exit): ")
-		keyword, _ := reader.ReadString('\n')
-		keyword = keyword[:len(keyword)-1]
-		if keyword == "" {
+		fmt.Print("Please enter words to search for separated by spaces (enter to exit): ")
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimRight(input, "\n")
+		if input == "" {
 			break
 		}
-		performSearchWord(cli, keyword)
+		keywords := strings.Split(input, " ")
+		for _, keyword := range keywords {
+			performSearchWord(cli, keyword)
+		}
 	}
 }
