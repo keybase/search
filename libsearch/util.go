@@ -34,6 +34,57 @@ func RandUint64n(n uint64) (uint64, error) {
 	return num.Uint64(), err
 }
 
+// GetNumLeadingZeroes returns the number of leading zeroes in `num` as an
+// uint64.  The algorithm is based upon the `__builtin_clz` function in C
+// languages.
+func GetNumLeadingZeroes(num uint64) uint {
+	numZeroes := uint64(64)
+
+	x := num
+	var y uint64
+	y = x >> 32
+	if y != 0 {
+		numZeroes -= 32
+		x = y
+	}
+	y = x >> 16
+	if y != 0 {
+		numZeroes -= 16
+		x = y
+	}
+	y = x >> 8
+	if y != 0 {
+		numZeroes -= 8
+		x = y
+	}
+	y = x >> 4
+	if y != 0 {
+		numZeroes -= 4
+		x = y
+	}
+
+	y = x >> 2
+	if y != 0 {
+		numZeroes -= 2
+		x = y
+	}
+
+	y = x >> 1
+	if y != 0 {
+		numZeroes -= 2
+	} else {
+		numZeroes -= x
+	}
+
+	return uint(numZeroes)
+}
+
+// BuildMaskWithLeadingZeroes returns an uint64 with the first `numZeroes` bits
+// being '0', and the rest being '1'.
+func BuildMaskWithLeadingZeroes(numZeroes uint) uint64 {
+	return (^uint64(0)) >> numZeroes
+}
+
 // RandUint64 returns a random 64-bit unsigned integer.
 func RandUint64() (uint64, error) {
 	i := new(big.Int)
