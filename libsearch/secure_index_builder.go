@@ -3,6 +3,7 @@ package libsearch
 import (
 	"bufio"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"hash"
@@ -76,12 +77,24 @@ func (sib *SecureIndexBuilder) buildBloomFilter(nonce uint64, document *os.File)
 // Blinds the bloom filter by setting random bits to be on for `numIterations`
 // iterations.
 func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int64) error {
-	for i := int64(0); i < numIterations; i++ {
-		randUint, err := RandUint64n(sib.size)
+	i := numIterations
+	mask := BuildMaskWithLeadingZeroes(GetNumLeadingZeroes(sib.size))
+	for i > 0 {
+		randNums := make([]uint64, int64(float64(i)*1.3))
+		err := binary.Read(rand.Reader, binary.LittleEndian, &randNums)
 		if err != nil {
 			return err
 		}
-		bf.SetBit(randUint)
+		for _, randNum := range randNums {
+			actualNum := randNum & mask
+			if actualNum < sib.size {
+				bf.SetBit(actualNum)
+				i--
+				if i == 0 {
+					break
+				}
+			}
+		}
 	}
 	return nil
 }
