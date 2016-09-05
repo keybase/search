@@ -37,6 +37,47 @@ func checkRandUint64nForNum(n uint64, t *testing.T) {
 	}
 }
 
+// testGetNumLeadingZeroesHelper is the helper function for
+// `TestGetNumLeadingZeroes`.  Checks that the call to `GetNumLeadingZeroes`
+// returns the expected result.
+func testGetNumLeadingZeroesHelper(t *testing.T, num uint64, expected uint) {
+	actual := GetNumLeadingZeroes(num)
+	if actual != expected {
+		t.Fatalf("Incorrect result for GetNumLeadingZeroes(%d): expected %d actual %d", num, expected, actual)
+	}
+}
+
+// TestGetNumLeadingZeroes tests the `GetNumLeadingZeroes` with various test
+// cases.
+func TestGetNumLeadingZeroes(t *testing.T) {
+	testGetNumLeadingZeroesHelper(t, 0, 64)
+	testGetNumLeadingZeroesHelper(t, 1, 63)
+	testGetNumLeadingZeroesHelper(t, 3, 62)
+	testGetNumLeadingZeroesHelper(t, 4, 61)
+	testGetNumLeadingZeroesHelper(t, 1023, 54)
+	testGetNumLeadingZeroesHelper(t, 1024, 53)
+	testGetNumLeadingZeroesHelper(t, ^uint64(0), 0)
+}
+
+// testBuildMaskWithLeadingZeroesHelper is the helper function for
+// `TestBuildMaskWithLeadingZeroes`.  Checks that the call to
+// `BuildMaskWithLeadingZeroes` returns the expected result.
+func testBuildMaskWithLeadingZeroesHelper(t *testing.T, numZeroes uint, expected uint64) {
+	actual := BuildMaskWithLeadingZeroes(numZeroes)
+	if actual != expected {
+		t.Fatalf("Incorrect result for BuildMaskWithLeadingZeroes(%d): expected %d actual %d", numZeroes, expected, actual)
+	}
+}
+
+// TestBuildMaskWithLeadingZeroes tests the `BuildMaskWithLeadingZeroes`
+// function with various test cases.
+func TestBuildMaskWithLeadingZeroes(t *testing.T) {
+	testBuildMaskWithLeadingZeroesHelper(t, 0, ^uint64(0))
+	testBuildMaskWithLeadingZeroesHelper(t, 64, 0)
+	testBuildMaskWithLeadingZeroesHelper(t, 62, 3)
+	testBuildMaskWithLeadingZeroesHelper(t, 54, 1023)
+}
+
 // Tests the `RandUint64n` function.  Checks that the random uint64's generated
 // are within the ranges.
 func TestRandUint64n(t *testing.T) {
