@@ -14,6 +14,11 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
+// RandomNumberGenerationFactor is the ratio of the number of random numbers to
+// generate to the number of which that we need.  We generate extra random
+// numbers to account for those that are out of range.
+const RandomNumberGenerationFactor = 1.3
+
 // SecureIndexBuilder stores the essential information needed to build the
 // indexes for the documents.
 type SecureIndexBuilder struct {
@@ -75,12 +80,14 @@ func (sib *SecureIndexBuilder) buildBloomFilter(nonce uint64, document *os.File)
 }
 
 // Blinds the bloom filter by setting random bits to be on for `numIterations`
-// iterations.
+// iterations.  Instead of using `rand.Read` or `rand.Int` from `crypto/rand`,
+// we generate the random numbers in batches to avoid the repeated syscalls in
+// the `crypto/rand` functions, which harms the performance.
 func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int64) error {
 	i := numIterations
 	mask := BuildMaskWithLeadingZeroes(GetNumLeadingZeroes(sib.size))
 	for i > 0 {
-		randNums := make([]uint64, int64(float64(i)*1.3))
+		randNums := make([]uint64, int64(float64(i)*RandomNumberGenerationFactor))
 		err := binary.Read(rand.Reader, binary.LittleEndian, &randNums)
 		if err != nil {
 			return err

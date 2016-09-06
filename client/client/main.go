@@ -70,7 +70,7 @@ func periodicAdd(cli *client.Client) {
 		}
 
 		if *verbose {
-			fmt.Printf("\n[%s]: All files Indexed in %s\n", currTime.Format("2006-01-02 15:04:05"), time.Since(currTime))
+			fmt.Printf("\n[%s]: All files indexed in %s\n", currTime.Format("2006-01-02 15:04:05"), time.Since(currTime))
 		}
 		time.Sleep(time.Second * 60)
 	}
