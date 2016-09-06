@@ -31,7 +31,7 @@ type Client struct {
 
 // HandlerName implements the ConnectionHandler interface.
 func (Client) HandlerName() string {
-	return "CryptoClient"
+	return "SearchClient"
 }
 
 // OnConnect implements the ConnectionHandler interface.
