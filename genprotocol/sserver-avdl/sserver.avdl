@@ -4,10 +4,13 @@ protocol searchServer {
   @typedef("string")
   record DocumentID {}
 
-  void writeIndex(bytes secureIndex, DocumentID docID);
-  void renameIndex(DocumentID orig, DocumentID curr);
-  void deleteIndex(DocumentID docID);
-  array<DocumentID> searchWord(array<bytes> trapdoors);
+  @typedef("string")
+  record FolderID {}
+
+  void writeIndex(FolderID tlfID, bytes secureIndex, DocumentID docID);
+  void renameIndex(FolderID tlfID, DocumentID orig, DocumentID curr);
+  void deleteIndex(FolderID tlfID, DocumentID docID);
+  array<DocumentID> searchWord(FolderID tlfID, array<bytes> trapdoors);
   array<bytes>  getSalts();
   long getSize();
 }
