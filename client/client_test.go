@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/keybase/kbfs/libkbfs"
 	sserver1 "github.com/keybase/search/protocol/sserver"
 	"golang.org/x/net/context"
 )
@@ -33,16 +35,16 @@ func (c *FakeServerClient) RenameIndex(_ context.Context, arg sserver1.RenameInd
 	return nil
 }
 
-func (c *FakeServerClient) DeleteIndex(_ context.Context, toDelete sserver1.DocumentID) error {
+func (c *FakeServerClient) DeleteIndex(_ context.Context, arg sserver1.DeleteIndexArg) error {
 	for i, docID := range c.docIDs {
-		if docID == toDelete {
+		if docID == arg.DocID {
 			c.docIDs = append(c.docIDs[:i], c.docIDs[i+1:]...)
 		}
 	}
 	return nil
 }
 
-func (c *FakeServerClient) SearchWord(_ context.Context, trapdoors [][]byte) ([]sserver1.DocumentID, error) {
+func (c *FakeServerClient) SearchWord(_ context.Context, arg sserver1.SearchWordArg) ([]sserver1.DocumentID, error) {
 	c.searchCount++
 	if c.searchCount == 1 {
 		expected := []sserver1.DocumentID{c.docIDs[1], c.docIDs[3]}
@@ -71,10 +73,21 @@ func startTestClient(t *testing.T) (*Client, string) {
 		t.Fatalf("error when creating the test client directory: %s", err)
 	}
 
-	masterSecret := []byte("This is a simple test string")
+	var status libkbfs.FolderBranchStatus
+	status.FolderID = "aRandomTLFID"
+	bytes, err := json.MarshalIndent(status, "", "  ")
+	if err != nil {
+		t.Fatalf("error when writing the TLF status: %s", err)
+	}
+	err = ioutil.WriteFile(filepath.Join(cliDir, ".kbfs_status"), bytes, 0666)
+	if err != nil {
+		t.Fatalf("error when writing the TLF status: %s", err)
+	}
+
+	masterSecrets := [][]byte{[]byte("This is a simple test string")}
 	searchCli := &FakeServerClient{docIDs: make([]sserver1.DocumentID, 0, 5)}
 
-	cli, err := createClientWithClient(context.Background(), searchCli, masterSecret, cliDir)
+	cli, err := createClientWithClient(context.Background(), searchCli, masterSecrets, []string{cliDir})
 	if err != nil {
 		t.Fatalf("Error when creating the client: %s", err)
 	}
@@ -91,10 +104,10 @@ func TestCreateClient(t *testing.T) {
 	client2, dir2 := startTestClient(t)
 	defer os.Remove(dir2)
 
-	if !reflect.DeepEqual(client1.indexer.ComputeTrapdoors("test"), client2.indexer.ComputeTrapdoors("test")) {
+	if !reflect.DeepEqual(client1.directoryInfos[dir1].indexer.ComputeTrapdoors("test"), client2.directoryInfos[dir2].indexer.ComputeTrapdoors("test")) {
 		t.Fatalf("clients with different indexer created with the same master secret")
 	}
-	if client1.pathnameKey != client2.pathnameKey {
+	if client1.directoryInfos[dir1].pathnameKey != client2.directoryInfos[dir2].pathnameKey {
 		t.Fatalf("clients with different pathnameKey created with the same master secret")
 	}
 }
@@ -111,11 +124,11 @@ func TestAddFile(t *testing.T) {
 		t.Fatalf("error when writing test file: %s", err)
 	}
 
-	if err := client.AddFile(filepath.Join(dir, "testFile")); err != nil {
+	if err := client.AddFile(dir, filepath.Join(dir, "testFile")); err != nil {
 		t.Fatalf("error when adding the file: %s", err)
 	}
 
-	if err := client.AddFile(filepath.Join(dir, "nonExisting")); !os.IsNotExist(err) {
+	if err := client.AddFile(dir, filepath.Join(dir, "nonExisting")); !os.IsNotExist(err) {
 		t.Fatalf("no error returned for non-existing file")
 	}
 
@@ -125,7 +138,7 @@ func TestAddFile(t *testing.T) {
 	}
 	defer os.Remove(fileNotInDir.Name())
 
-	if err := client.AddFile(fileNotInDir.Name()); err.Error() != "target path not within base path" {
+	if err := client.AddFile(dir, fileNotInDir.Name()); err.Error() != "target path not within base path" {
 		t.Fatalf("error not properly returned for file not in the client directory")
 	}
 }
@@ -141,17 +154,17 @@ func TestRenameFile(t *testing.T) {
 		t.Fatalf("error when writing test file: %s", err)
 	}
 
-	if err := client.AddFile(filepath.Join(dir, "testRenameFile")); err != nil {
+	if err := client.AddFile(dir, filepath.Join(dir, "testRenameFile")); err != nil {
 		t.Fatalf("error when adding the file: %s", err)
 	}
 
-	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err != nil {
+	if err := client.RenameFile(dir, filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err != nil {
 		t.Fatalf("error when renaming file: %s", err)
 	}
 
 	// Doing the renaming second time should still succeed, even though nothing
 	// real has been done.
-	if err := client.RenameFile(filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err != nil {
+	if err := client.RenameFile(dir, filepath.Join(dir, "testRenameFile"), filepath.Join(dir, "testRename")); err != nil {
 		t.Fatalf("error when renaming a non-existing file: %s", err)
 	}
 }
@@ -167,23 +180,23 @@ func TestDeleteFile(t *testing.T) {
 		t.Fatalf("error when writing test file: %s", err)
 	}
 
-	if err := client.AddFile(filepath.Join(dir, "testDeleteFile")); err != nil {
+	if err := client.AddFile(dir, filepath.Join(dir, "testDeleteFile")); err != nil {
 		t.Fatalf("error when adding the file: %s", err)
 	}
 
-	if err := client.DeleteFile(filepath.Join(dir, "testDeleteFile")); err != nil {
+	if err := client.DeleteFile(dir, filepath.Join(dir, "testDeleteFile")); err != nil {
 		t.Fatalf("error when deleting file: %s", err)
 	}
 
 	// Doing the deleting second time should still succeed.
-	if err := client.DeleteFile(filepath.Join(dir, "testDeleteFile")); err != nil {
+	if err := client.DeleteFile(dir, filepath.Join(dir, "testDeleteFile")); err != nil {
 		t.Fatalf("error when deleting a non-existing file: %s", err)
 	}
 }
 
 // testSearchWordHelper tests the provided 'searchFunc' function.  Checks that
 // the correct set of filenames are returned.
-func testSearchWordHelper(t *testing.T, searchFunc func(*Client, string) ([]string, error)) {
+func testSearchWordHelper(t *testing.T, searchFunc func(*Client, string, string) ([]string, error)) {
 	client, dir := startTestClient(t)
 	defer os.RemoveAll(dir)
 
@@ -201,14 +214,14 @@ func testSearchWordHelper(t *testing.T, searchFunc func(*Client, string) ([]stri
 		if err := ioutil.WriteFile(filenames[i], []byte(fileContent), 0666); err != nil {
 			t.Fatalf("error when writing test file: %s", err)
 		}
-		if err := client.AddFile(filenames[i]); err != nil {
+		if err := client.AddFile(dir, filenames[i]); err != nil {
 			t.Fatalf("error when adding the file: %s", err)
 		}
 	}
 
 	expected := []string{filenames[1], filenames[3]}
 	sort.Strings(expected)
-	actual, err := searchFunc(client, "another")
+	actual, err := searchFunc(client, dir, "another")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
@@ -216,7 +229,7 @@ func testSearchWordHelper(t *testing.T, searchFunc func(*Client, string) ([]stri
 		t.Fatalf("incorrect search result: expected \"%s\" actual \"%s\"", expected, actual)
 	}
 
-	empty, err := searchFunc(client, "non-existing")
+	empty, err := searchFunc(client, dir, "non-existing")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
@@ -226,7 +239,7 @@ func testSearchWordHelper(t *testing.T, searchFunc func(*Client, string) ([]stri
 
 	expected = filenames
 	sort.Strings(expected)
-	actual, err = searchFunc(client, "file")
+	actual, err = searchFunc(client, dir, "file")
 	if err != nil {
 		t.Fatalf("error when searching word: %s", err)
 	}
@@ -236,13 +249,13 @@ func testSearchWordHelper(t *testing.T, searchFunc func(*Client, string) ([]stri
 }
 
 // searchWordWrapper is the wrapper function for `SearchWord`.
-func searchWordWrapper(client *Client, word string) ([]string, error) {
-	return client.SearchWord(word)
+func searchWordWrapper(client *Client, directory string, word string) ([]string, error) {
+	return client.SearchWord(directory, word)
 }
 
 // searchWordStrictWrapper is the wrapper function for `SearchWordStrict`.
-func searchWordStrictWrapper(client *Client, word string) ([]string, error) {
-	return client.SearchWordStrict(word)
+func searchWordStrictWrapper(client *Client, directory, word string) ([]string, error) {
+	return client.SearchWordStrict(directory, word)
 }
 
 // TestSearchWord tests the 'SearchWord' function.  Checks that the correct set
