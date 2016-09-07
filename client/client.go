@@ -22,6 +22,7 @@ import (
 // document IDs, and vice versa.
 type PathnameKeyType [32]byte
 
+// DirectoryInfo holds necessary information for a KBFS-mounted directory.
 type DirectoryInfo struct {
 	tlfID       sserver1.FolderID             // The TLF ID of the directory.
 	indexer     *libsearch.SecureIndexBuilder // The indexer for the directory.
@@ -31,8 +32,7 @@ type DirectoryInfo struct {
 // Client contains all the necessary information for a KBFS Search Client.
 type Client struct {
 	searchCli      sserver1.SearchServerInterface // The client that talks to the RPC Search Server.
-	directories    []string                       // The directories where KBFS TLFs are mounted.
-	directoryInfos map[string]DirectoryInfo
+	directoryInfos map[string]DirectoryInfo       // The map from the directories to the DirectoryInfo's.
 }
 
 // HandlerName implements the ConnectionHandler interface.

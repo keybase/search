@@ -148,12 +148,12 @@ func relPathStrict(basepath, targpath string) (string, error) {
 // getTlfID gets the TLF ID of a directory.  Returns an error if no TLF ID can
 // be found for that directory.
 func getTlfID(directory string) (sserver1.FolderID, error) {
-	statusJson, err := ioutil.ReadFile(filepath.Join(directory, ".kbfs_status"))
+	statusJSON, err := ioutil.ReadFile(filepath.Join(directory, ".kbfs_status"))
 	if err != nil {
 		return sserver1.FolderID(""), err
 	}
 	var folderStatus libkbfs.FolderBranchStatus
-	err = json.Unmarshal(statusJson, &folderStatus)
+	err = json.Unmarshal(statusJSON, &folderStatus)
 	if err != nil {
 		return sserver1.FolderID(""), err
 	}
