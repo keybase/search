@@ -118,7 +118,7 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 		return nil, err
 	}
 
-	var directoryInfos map[string]DirectoryInfo
+	directoryInfos := make(map[string]DirectoryInfo)
 
 	for i, directory := range directories {
 		indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecrets[i], salts, uint64(size))
