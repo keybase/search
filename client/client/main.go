@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var clientDirectory = flag.String("client_dir", "/keybase/private/jiaxin", "the keybase directory for the client where the files should be indexed")
+var clientDirectories = flag.String("client_dirs", "/keybase/private/jiaxin;/keybase/private/jiaxin,strib", "the keybase directories for the client where the files should be indexed, separated by ';'")
 var port = flag.Int("port", 8022, "the port that the search server is listening on")
 var ipAddr = flag.String("ip_addr", "127.0.0.1", "the IP address that the search server is listening on")
 var lenMS = flag.Int("len_ms", 64, "the length of the master secret")
@@ -42,7 +42,7 @@ func addAllFiles(cli *client.Client, lastIndexed time.Time) filepath.WalkFunc {
 
 // periodicAdd scans the files in the client directory every minute and adds
 // the updated files to the search server.
-func periodicAdd(cli *client.Client) {
+func periodicAdd(cli *client.Client, clientDirs []string) {
 	for {
 		currTime := time.Now()
 
@@ -76,40 +76,43 @@ func periodicAdd(cli *client.Client) {
 	}
 }
 
-// fetchMasterSecret fetches the master secret from the client directory.  If
+// fetchMasterSecrets fetches the master secrets from the client directories.  If
 // the master secret is not present, a new one is generated and written to the
-// directory.  An error is returned if the there is an issue accessing the
-// master secret or the master secret is of the wrong length.
-func fetchMasterSecret() ([]byte, error) {
-	var masterSecret []byte
+// directory.  An error is returned if there is an issue accessing the master
+// secret or the master secret is of the wrong length.
+func fetchMasterSecrets(clientDirs []string) ([][]byte, error) {
+	masterSecrets := make([][]byte, len(clientDirs))
 
-	f, err := os.OpenFile(filepath.Join(*clientDirectory, ".search_kbfs_secret"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+	for i, clientDir := range clientDirs {
 
-	if err == nil {
-		defer f.Close()
-		// Generate a random master secret and write it to file
-		masterSecret = make([]byte, *lenMS)
-		if _, err := rand.Read(masterSecret); err != nil {
+		f, err := os.OpenFile(filepath.Join(clientDir, ".search_kbfs_secret"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+
+		if err == nil {
+			defer f.Close()
+			// Generate a random master secret and write it to file
+			masterSecrets[i] = make([]byte, *lenMS)
+			if _, err := rand.Read(masterSecret); err != nil {
+				return nil, err
+			}
+
+			_, err = f.Write(masterSecret)
+			if err != nil {
+				return nil, err
+			}
+		} else if os.IsExist(err) {
+			// Read the master secret from file
+			masterSecrets[i], err = ioutil.ReadFile(filepath.Join(clientDir, ".search_kbfs_secret"))
+			if err != nil {
+				return nil, err
+			}
+			if len(masterSecrets[i]) != *lenMS {
+				return nil, errors.New("Invalid master secret length")
+			}
+		} else {
 			return nil, err
 		}
-
-		_, err = f.Write(masterSecret)
-		if err != nil {
-			return nil, err
-		}
-	} else if os.IsExist(err) {
-		// Read the master secret from file
-		masterSecret, err = ioutil.ReadFile(filepath.Join(*clientDirectory, ".search_kbfs_secret"))
-		if err != nil {
-			return nil, err
-		}
-		if len(masterSecret) != *lenMS {
-			return nil, errors.New("Invalid master secret length")
-		}
-	} else {
-		return nil, err
 	}
-	return masterSecret, nil
+	return masterSecrets, nil
 }
 
 // performSearchWord searched for the word `keyword` on `cli`, and print out the
@@ -134,21 +137,23 @@ func performSearchWord(cli *client.Client, keyword string) {
 func main() {
 	flag.Parse()
 
+	clientDirs := strings.Split(*clientDirectories, ";")
+
 	// Fetch the master secret from the client directory
-	masterSecret, err := fetchMasterSecret()
+	masterSecrets, err := fetchMasterSecret(clientDirs)
 	if err != nil {
 		fmt.Printf("Cannot fetch the master secret: %s\n", err)
 		os.Exit(1)
 	}
 
 	// Initiate the search client
-	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, masterSecret, *clientDirectory, *verbose)
+	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, masterSecrets, clientDirs, *verbose)
 	if err != nil {
 		fmt.Printf("Cannot initialize the client: %s\n", err)
 		os.Exit(1)
 	}
 
-	go periodicAdd(cli)
+	go periodicAdd(cli, clientDirs)
 
 	reader := bufio.NewReader(os.Stdin)
 
