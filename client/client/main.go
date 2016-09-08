@@ -40,7 +40,7 @@ func addAllFiles(cli *client.Client, clientDir string, lastIndexed time.Time) fi
 	}
 }
 
-// periodicAdd scans the files in the client directory every minute and adds
+// periodicAdd scans the files in the client directories every minute and adds
 // the updated files to the search server.
 func periodicAdd(cli *client.Client, clientDirs []string) {
 	for {
@@ -117,8 +117,8 @@ func fetchMasterSecrets(clientDirs []string) ([][]byte, error) {
 	return masterSecrets, nil
 }
 
-// performSearchWord searched for the word `keyword` on `cli`, and print out the
-// results.
+// performSearchWord searches for the word `keyword` on `cli`, and prints out
+// the results.
 func performSearchWord(cli *client.Client, clientDirs []string, keyword string) {
 	var allFiles []string
 	for _, clientDir := range clientDirs {
