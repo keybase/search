@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var clientDirectories = flag.String("client_dirs", "/keybase/private/jiaxin;/keybase/private/jiaxin,strib", "the keybase directories for the client where the files should be indexed, separated by ';'")
+var clientDirectories = flag.String("client_dirs", "/keybase/private/jiaxin,songgao;/keybase/private/jiaxin,strib", "the keybase directories for the client where the files should be indexed, separated by ';'")
 var port = flag.Int("port", 8022, "the port that the search server is listening on")
 var ipAddr = flag.String("ip_addr", "127.0.0.1", "the IP address that the search server is listening on")
 var lenMS = flag.Int("len_ms", 64, "the length of the master secret")
@@ -24,13 +24,13 @@ var verbose = flag.Bool("v", false, "whether log outputs should be printed out")
 
 // addAllFiles adds all the non-hidden files that have been modified after
 // `lastIndexed`.
-func addAllFiles(cli *client.Client, lastIndexed time.Time) filepath.WalkFunc {
+func addAllFiles(cli *client.Client, clientDir string, lastIndexed time.Time) filepath.WalkFunc {
 	return func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() && (info.Name()[0] == '.' || info.ModTime().Before(lastIndexed)) {
 			return filepath.SkipDir
 		} else if !info.IsDir() && info.Name()[0] != '.' {
 			if info.ModTime().After(lastIndexed) {
-				cli.AddFile(path)
+				cli.AddFile(clientDir, path)
 				if *verbose {
 					fmt.Println("Added:", path)
 				}
@@ -44,33 +44,35 @@ func addAllFiles(cli *client.Client, lastIndexed time.Time) filepath.WalkFunc {
 // the updated files to the search server.
 func periodicAdd(cli *client.Client, clientDirs []string) {
 	for {
-		currTime := time.Now()
+		for _, clientDir := range clientDirs {
+			currTime := time.Now()
 
-		var lastIndexed time.Time
+			var lastIndexed time.Time
 
-		lastIndexedJSON, err := ioutil.ReadFile(filepath.Join(*clientDirectory, ".search_kbfs_timestamp"))
-		if err == nil {
-			if err := lastIndexed.UnmarshalJSON(lastIndexedJSON); err != nil {
+			lastIndexedJSON, err := ioutil.ReadFile(filepath.Join(clientDir, ".search_kbfs_timestamp"))
+			if err == nil {
+				if err := lastIndexed.UnmarshalJSON(lastIndexedJSON); err != nil {
+					panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
+				}
+			} else if !os.IsNotExist(err) {
 				panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
 			}
-		} else if !os.IsNotExist(err) {
-			panic(fmt.Sprintf("Error when accessing the last indexed timestamp: %s", err))
-		}
 
-		if err := filepath.Walk(*clientDirectory, addAllFiles(cli, lastIndexed)); err != nil {
-			panic(fmt.Sprintf("Error when indexing the files: %s", err))
-		}
+			if err := filepath.Walk(clientDir, addAllFiles(cli, clientDir, lastIndexed)); err != nil {
+				panic(fmt.Sprintf("Error when indexing the files: %s", err))
+			}
 
-		currTimeJSON, err := currTime.MarshalJSON()
-		if err != nil {
-			panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
-		}
-		if err := ioutil.WriteFile(filepath.Join(*clientDirectory, ".search_kbfs_timestamp"), currTimeJSON, 0666); err != nil {
-			panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
-		}
+			currTimeJSON, err := currTime.MarshalJSON()
+			if err != nil {
+				panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
+			}
+			if err := ioutil.WriteFile(filepath.Join(clientDir, ".search_kbfs_timestamp"), currTimeJSON, 0666); err != nil {
+				panic(fmt.Sprintf("Error when writing the timestamp: %s", err))
+			}
 
-		if *verbose {
-			fmt.Printf("\n[%s]: All files indexed in %s\n", currTime.Format("2006-01-02 15:04:05"), time.Since(currTime))
+			if *verbose {
+				fmt.Printf("\n[%s]: All files under directory \"%s\" indexed in %s\n", currTime.Format("2006-01-02 15:04:05"), clientDir, time.Since(currTime))
+			}
 		}
 		time.Sleep(time.Second * 60)
 	}
@@ -91,11 +93,11 @@ func fetchMasterSecrets(clientDirs []string) ([][]byte, error) {
 			defer f.Close()
 			// Generate a random master secret and write it to file
 			masterSecrets[i] = make([]byte, *lenMS)
-			if _, err := rand.Read(masterSecret); err != nil {
+			if _, err := rand.Read(masterSecrets[i]); err != nil {
 				return nil, err
 			}
 
-			_, err = f.Write(masterSecret)
+			_, err = f.Write(masterSecrets[i])
 			if err != nil {
 				return nil, err
 			}
@@ -117,17 +119,21 @@ func fetchMasterSecrets(clientDirs []string) ([][]byte, error) {
 
 // performSearchWord searched for the word `keyword` on `cli`, and print out the
 // results.
-func performSearchWord(cli *client.Client, keyword string) {
-	filenames, err := cli.SearchWordStrict(keyword)
-	if err != nil {
-		fmt.Printf("Error when searching word %s: %s", keyword, err)
-		return
+func performSearchWord(cli *client.Client, clientDirs []string, keyword string) {
+	var allFiles []string
+	for _, clientDir := range clientDirs {
+		filenames, err := cli.SearchWordStrict(clientDir, keyword)
+		if err != nil {
+			fmt.Printf("Error when searching word %s: %s", keyword, err)
+			return
+		}
+		allFiles = append(allFiles, filenames...)
 	}
-	if len(filenames) == 0 {
+	if len(allFiles) == 0 {
 		fmt.Printf("No file contains the word \"%s\".\n", keyword)
 	} else {
 		fmt.Printf("Files containing the word \"%s\":\n", keyword)
-		for _, filename := range filenames {
+		for _, filename := range allFiles {
 			fmt.Printf("\t%s\n", filename)
 		}
 	}
@@ -140,7 +146,7 @@ func main() {
 	clientDirs := strings.Split(*clientDirectories, ";")
 
 	// Fetch the master secret from the client directory
-	masterSecrets, err := fetchMasterSecret(clientDirs)
+	masterSecrets, err := fetchMasterSecrets(clientDirs)
 	if err != nil {
 		fmt.Printf("Cannot fetch the master secret: %s\n", err)
 		os.Exit(1)
@@ -166,7 +172,7 @@ func main() {
 		}
 		keywords := strings.Split(input, " ")
 		for _, keyword := range keywords {
-			performSearchWord(cli, keyword)
+			performSearchWord(cli, clientDirs, keyword)
 		}
 	}
 }
