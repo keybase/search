@@ -120,6 +120,7 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 
 	directoryInfos := make(map[string]DirectoryInfo)
 
+	// Initializes the info for each directory.
 	for i, directory := range directories {
 		indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecrets[i], salts, uint64(size))
 
@@ -153,8 +154,8 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 	return cli, nil
 }
 
-// AddFile indexes a file with the given `pathname` and writes the index to the
-// server.
+// AddFile indexes a file in `directory` with the given `pathname` and writes
+// the index to the server.
 func (c *Client) AddFile(directory, pathname string) error {
 	absDir, err := filepath.Abs(directory)
 	if err != nil {
@@ -198,9 +199,9 @@ func (c *Client) AddFile(directory, pathname string) error {
 	return c.searchCli.WriteIndex(context.TODO(), sserver1.WriteIndexArg{TlfID: c.directoryInfos[absDir].tlfID, SecureIndex: secIndexBytes, DocID: docID})
 }
 
-// RenameFile is called when a file has been renamed from `orig` to `curr`.
-// This will rename their corresponding indexes.  Returns an error if the
-// filenames are invalid.
+// RenameFile is called when a file in `directory` has been renamed from `orig`
+// to `curr`.  This will rename their corresponding indexes.  Returns an error
+// if the filenames are invalid.
 func (c *Client) RenameFile(directory string, orig, curr string) error {
 	absDir, err := filepath.Abs(directory)
 	if err != nil {
@@ -234,7 +235,8 @@ func (c *Client) RenameFile(directory string, orig, curr string) error {
 	return c.searchCli.RenameIndex(context.TODO(), sserver1.RenameIndexArg{TlfID: c.directoryInfos[absDir].tlfID, Orig: origDocID, Curr: currDocID})
 }
 
-// DeleteFile deletes the index on the server associated with `pathname`.
+// DeleteFile deletes the index on the server associated with `pathname` in
+// `directory`.
 func (c *Client) DeleteFile(directory string, pathname string) error {
 	absDir, err := filepath.Abs(directory)
 	if err != nil {
@@ -259,7 +261,7 @@ func (c *Client) DeleteFile(directory string, pathname string) error {
 }
 
 // SearchWord performs a search request on the search server and returns the
-// list of filenames possibly containing the word.
+// list of filenames in `directory` possibly containing the `word`.
 // NOTE: False positives are possible.
 func (c *Client) SearchWord(directory, word string) ([]string, error) {
 	absDir, err := filepath.Abs(directory)
