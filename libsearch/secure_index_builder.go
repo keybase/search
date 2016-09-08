@@ -3,6 +3,7 @@ package libsearch
 import (
 	"bufio"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"hash"
@@ -12,6 +13,11 @@ import (
 	"github.com/jxguan/go-datastructures/bitarray"
 	"golang.org/x/crypto/pbkdf2"
 )
+
+// RandomNumberGenerationFactor is the ratio of the number of random numbers to
+// generate to the number of which that we need.  We generate extra random
+// numbers to account for those that are out of range.
+const RandomNumberGenerationFactor = 1.3
 
 // SecureIndexBuilder stores the essential information needed to build the
 // indexes for the documents.
@@ -74,14 +80,28 @@ func (sib *SecureIndexBuilder) buildBloomFilter(nonce uint64, document *os.File)
 }
 
 // Blinds the bloom filter by setting random bits to be on for `numIterations`
-// iterations.
+// iterations.  Instead of using `rand.Read` or `rand.Int` from `crypto/rand`,
+// we generate the random numbers in batches to avoid the repeated syscalls in
+// the `crypto/rand` functions, which harms the performance.
 func (sib *SecureIndexBuilder) blindBloomFilter(bf bitarray.BitArray, numIterations int64) error {
-	for i := int64(0); i < numIterations; i++ {
-		randUint, err := RandUint64n(sib.size)
+	i := numIterations
+	mask := BuildMaskWithLeadingZeroes(GetNumLeadingZeroes(sib.size))
+	for i > 0 {
+		randNums := make([]uint64, int64(float64(i)*RandomNumberGenerationFactor))
+		err := binary.Read(rand.Reader, binary.LittleEndian, &randNums)
 		if err != nil {
 			return err
 		}
-		bf.SetBit(randUint)
+		for _, randNum := range randNums {
+			actualNum := randNum & mask
+			if actualNum < sib.size {
+				bf.SetBit(actualNum)
+				i--
+				if i == 0 {
+					break
+				}
+			}
+		}
 	}
 	return nil
 }
