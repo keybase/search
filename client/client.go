@@ -24,12 +24,15 @@ type PathnameKeyType [32]byte
 
 // DirectoryInfo holds necessary information for a KBFS-mounted directory.
 type DirectoryInfo struct {
+	absDir      string                        // The absolute path of the directory.
 	tlfID       sserver1.FolderID             // The TLF ID of the directory.
 	indexer     *libsearch.SecureIndexBuilder // The indexer for the directory.
 	pathnameKey PathnameKeyType               // The key to encrypt and decrypt the pathname to/from document IDs.
 }
 
 // Client contains all the necessary information for a KBFS Search Client.
+// TODO: Add a lock to protect directoryInfos if adding directories during
+// execution is allowed.
 type Client struct {
 	searchCli      sserver1.SearchServerInterface // The client that talks to the RPC Search Server.
 	directoryInfos map[string]DirectoryInfo       // The map from the directories to the DirectoryInfo's.
@@ -138,6 +141,7 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 		}
 
 		dirInfo := DirectoryInfo{
+			absDir:      absDir,
 			tlfID:       tlfID,
 			indexer:     indexer,
 			pathnameKey: pathnameKey,
@@ -154,24 +158,37 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 	return cli, nil
 }
 
+// getDirectoryInfo is a helper function that gets the DirectoryInfo for
+// `directory`.  Returns an error if the `directory` provided is invalid or
+// not present in the current client.
+func (c *Client) getDirectoryInfo(directory string) (DirectoryInfo, error) {
+	absDir, err := filepath.Abs(directory)
+	if err != nil {
+		return DirectoryInfo{}, err
+	}
+
+	dirInfo, ok := c.directoryInfos[absDir]
+	if !ok {
+		return DirectoryInfo{}, errors.New("invalid directory name provided")
+	}
+
+	return dirInfo, nil
+}
+
 // AddFile indexes a file in `directory` with the given `pathname` and writes
 // the index to the server.
 func (c *Client) AddFile(directory, pathname string) error {
-	absDir, err := filepath.Abs(directory)
+	dirInfo, err := c.getDirectoryInfo(directory)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := c.directoryInfos[absDir]; !ok {
-		return errors.New("invalid directory name provided")
-	}
-
-	relPath, err := relPathStrict(absDir, pathname)
+	relPath, err := relPathStrict(dirInfo.absDir, pathname)
 	if err != nil {
 		return err
 	}
 
-	docID, err := pathnameToDocID(relPath, c.directoryInfos[absDir].pathnameKey)
+	docID, err := pathnameToDocID(relPath, dirInfo.pathnameKey)
 	if err != nil {
 		return err
 	}
@@ -186,7 +203,7 @@ func (c *Client) AddFile(directory, pathname string) error {
 		return err
 	}
 
-	secIndex, err := c.directoryInfos[absDir].indexer.BuildSecureIndex(file, fileInfo.Size())
+	secIndex, err := dirInfo.indexer.BuildSecureIndex(file, fileInfo.Size())
 	if err != nil {
 		return err
 	}
@@ -196,96 +213,84 @@ func (c *Client) AddFile(directory, pathname string) error {
 		return err
 	}
 
-	return c.searchCli.WriteIndex(context.TODO(), sserver1.WriteIndexArg{TlfID: c.directoryInfos[absDir].tlfID, SecureIndex: secIndexBytes, DocID: docID})
+	return c.searchCli.WriteIndex(context.TODO(), sserver1.WriteIndexArg{TlfID: dirInfo.tlfID, SecureIndex: secIndexBytes, DocID: docID})
 }
 
 // RenameFile is called when a file in `directory` has been renamed from `orig`
 // to `curr`.  This will rename their corresponding indexes.  Returns an error
 // if the filenames are invalid.
 func (c *Client) RenameFile(directory string, orig, curr string) error {
-	absDir, err := filepath.Abs(directory)
+	dirInfo, err := c.getDirectoryInfo(directory)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := c.directoryInfos[absDir]; !ok {
-		return errors.New("invalid directory name provided")
-	}
-
-	relOrig, err := relPathStrict(absDir, orig)
+	relOrig, err := relPathStrict(dirInfo.absDir, orig)
 	if err != nil {
 		return err
 	}
 
-	relCurr, err := relPathStrict(absDir, curr)
+	relCurr, err := relPathStrict(dirInfo.absDir, curr)
 	if err != nil {
 		return err
 	}
 
-	origDocID, err := pathnameToDocID(relOrig, c.directoryInfos[absDir].pathnameKey)
+	origDocID, err := pathnameToDocID(relOrig, dirInfo.pathnameKey)
 	if err != nil {
 		return err
 	}
 
-	currDocID, err := pathnameToDocID(relCurr, c.directoryInfos[absDir].pathnameKey)
+	currDocID, err := pathnameToDocID(relCurr, dirInfo.pathnameKey)
 	if err != nil {
 		return err
 	}
 
-	return c.searchCli.RenameIndex(context.TODO(), sserver1.RenameIndexArg{TlfID: c.directoryInfos[absDir].tlfID, Orig: origDocID, Curr: currDocID})
+	return c.searchCli.RenameIndex(context.TODO(), sserver1.RenameIndexArg{TlfID: dirInfo.tlfID, Orig: origDocID, Curr: currDocID})
 }
 
 // DeleteFile deletes the index on the server associated with `pathname` in
 // `directory`.
 func (c *Client) DeleteFile(directory string, pathname string) error {
-	absDir, err := filepath.Abs(directory)
+	dirInfo, err := c.getDirectoryInfo(directory)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := c.directoryInfos[absDir]; !ok {
-		return errors.New("invalid directory name provided")
-	}
-
-	relPath, err := relPathStrict(absDir, pathname)
+	relPath, err := relPathStrict(dirInfo.absDir, pathname)
 	if err != nil {
 		return err
 	}
 
-	docID, err := pathnameToDocID(relPath, c.directoryInfos[absDir].pathnameKey)
+	docID, err := pathnameToDocID(relPath, dirInfo.pathnameKey)
 	if err != nil {
 		return err
 	}
 
-	return c.searchCli.DeleteIndex(context.Background(), sserver1.DeleteIndexArg{TlfID: c.directoryInfos[absDir].tlfID, DocID: docID})
+	return c.searchCli.DeleteIndex(context.Background(), sserver1.DeleteIndexArg{TlfID: dirInfo.tlfID, DocID: docID})
 }
 
 // SearchWord performs a search request on the search server and returns the
 // list of filenames in `directory` possibly containing the `word`.
 // NOTE: False positives are possible.
 func (c *Client) SearchWord(directory, word string) ([]string, error) {
-	absDir, err := filepath.Abs(directory)
+	dirInfo, err := c.getDirectoryInfo(directory)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := c.directoryInfos[absDir]; !ok {
-		return nil, errors.New("invalid directory name provided")
-	}
-
-	trapdoors := c.directoryInfos[absDir].indexer.ComputeTrapdoors(word)
-	documents, err := c.searchCli.SearchWord(context.TODO(), sserver1.SearchWordArg{TlfID: c.directoryInfos[absDir].tlfID, Trapdoors: trapdoors})
+	trapdoors := dirInfo.indexer.ComputeTrapdoors(word)
+	documents, err := c.searchCli.SearchWord(context.TODO(), sserver1.SearchWordArg{TlfID: dirInfo.tlfID, Trapdoors: trapdoors})
 	if err != nil {
 		return nil, err
 	}
 
 	filenames := make([]string, len(documents))
 	for i, docID := range documents {
-		pathname, err := docIDToPathname(docID, c.directoryInfos[absDir].pathnameKey)
+		pathname, err := docIDToPathname(docID, dirInfo.pathnameKey)
 		if err != nil {
 			return nil, err
 		}
-		filenames[i] = filepath.Join(absDir, pathname)
+		filenames[i] = filepath.Join(dirInfo.absDir, pathname)
 	}
 
 	sort.Strings(filenames)

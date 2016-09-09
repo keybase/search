@@ -119,6 +119,7 @@ func fetchMasterSecrets(clientDirs []string) ([][]byte, error) {
 
 // performSearchWord searches for the word `keyword` on `cli`, and prints out
 // the results.
+// TODO: Parallelize the search on different TLFs for performance optimization.
 func performSearchWord(cli *client.Client, clientDirs []string, keyword string) {
 	var allFiles []string
 	for _, clientDir := range clientDirs {
