@@ -2,7 +2,13 @@ package client
 
 import (
 	"crypto/rand"
+	"encoding/json"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/keybase/kbfs/libkbfs"
 )
 
 // TestDocID tests the `pathnameToDocID` and the `docIDToPathname` functions.
@@ -107,5 +113,35 @@ func TestRelPathStrict(t *testing.T) {
 	testRelPathStrictHelper(t, "reverse/invalid", "reverse", "", true)
 	testRelPathStrictHelper(t, "prefix", "prefixinvalid/invalid", "", true)
 	testRelPathStrictHelper(t, "same", "same", "", true)
+}
 
+// TestGetTlfID tests the `getTlfID` function.  Checks that the correct TLF ID
+// is retrieved.
+func TestGetTlfID(t *testing.T) {
+	expectedTlfID := "randomrandomfolderID"
+
+	tempDir, err := ioutil.TempDir("", "TestTlfID")
+	if err != nil {
+		t.Fatalf("error when creating the test directory: %s", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	var status libkbfs.FolderBranchStatus
+	status.FolderID = expectedTlfID
+	bytes, err := json.MarshalIndent(status, "", "  ")
+	if err != nil {
+		t.Fatalf("error when writing the TLF status: %s", err)
+	}
+	err = ioutil.WriteFile(filepath.Join(tempDir, ".kbfs_status"), bytes, 0666)
+	if err != nil {
+		t.Fatalf("error when writing the TLF status: %s", err)
+	}
+
+	actualTlfID, err := getTlfID(tempDir)
+	if err != nil {
+		t.Fatalf("error when reading the TLF ID: %s", err)
+	}
+	if actualTlfID.String() != expectedTlfID {
+		t.Fatalf("unmatching TLF IDs: expected \"%s\" actual \"%s\"", expectedTlfID, actualTlfID)
+	}
 }

@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,12 +22,20 @@ import (
 // document IDs, and vice versa.
 type PathnameKeyType [32]byte
 
+// DirectoryInfo holds necessary information for a KBFS-mounted directory.
+type DirectoryInfo struct {
+	absDir      string                        // The absolute path of the directory.
+	tlfID       sserver1.FolderID             // The TLF ID of the directory.
+	indexer     *libsearch.SecureIndexBuilder // The indexer for the directory.
+	pathnameKey PathnameKeyType               // The key to encrypt and decrypt the pathname to/from document IDs.
+}
+
 // Client contains all the necessary information for a KBFS Search Client.
+// TODO: Add a lock to protect directoryInfos if adding directories during
+// execution is allowed.
 type Client struct {
-	searchCli   sserver1.SearchServerInterface // The client that talks to the RPC Search Server.
-	directory   string                         // The directory where KBFS is mounted.
-	indexer     *libsearch.SecureIndexBuilder  // The indexer for the client.
-	pathnameKey PathnameKeyType                // The key to encrypt and decrypt the pathnames to/from document IDs.
+	searchCli      sserver1.SearchServerInterface // The client that talks to the RPC Search Server.
+	directoryInfos map[string]DirectoryInfo       // The map from the directories to the DirectoryInfo's.
 }
 
 // HandlerName implements the ConnectionHandler interface.
@@ -85,7 +94,7 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 
 // CreateClient creates a new `Client` instance with the parameters and returns
 // a pointer the the instance.  Returns an error on any failure.
-func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []byte, directory string, verbose bool) (*Client, error) {
+func CreateClient(ctx context.Context, ipAddr string, port int, masterSecrets [][]byte, directories []string, verbose bool) (*Client, error) {
 	// TODO: Switch to TLS connection.
 	uri, err := rpc.ParseFMPURI(fmt.Sprintf("fmprpc://%s:%d", ipAddr, port))
 	if err != nil {
@@ -96,12 +105,12 @@ func CreateClient(ctx context.Context, ipAddr string, port int, masterSecret []b
 
 	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 
-	return createClientWithClient(ctx, searchCli, masterSecret, directory)
+	return createClientWithClient(ctx, searchCli, masterSecrets, directories)
 }
 
 // createClient creates a new `Client` with a given SearchServerInterface.
 // Should only be used internally and for tests.
-func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServerInterface, masterSecret []byte, directory string) (*Client, error) {
+func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServerInterface, masterSecrets [][]byte, directories []string) (*Client, error) {
 	salts, err := searchCli.GetSalts(ctx)
 	if err != nil {
 		return nil, err
@@ -112,35 +121,74 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 		return nil, err
 	}
 
-	indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, salts, uint64(size))
+	directoryInfos := make(map[string]DirectoryInfo)
 
-	var pathnameKey [32]byte
-	copy(pathnameKey[:], masterSecret[0:32])
+	// Initializes the info for each directory.
+	for i, directory := range directories {
+		indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecrets[i], salts, uint64(size))
 
-	absDir, err := filepath.Abs(directory)
-	if err != nil {
-		return nil, err
+		var pathnameKey [32]byte
+		copy(pathnameKey[:], masterSecrets[i][0:32])
+
+		absDir, err := filepath.Abs(directory)
+		if err != nil {
+			return nil, err
+		}
+
+		tlfID, err := getTlfID(absDir)
+		if err != nil {
+			return nil, err
+		}
+
+		dirInfo := DirectoryInfo{
+			absDir:      absDir,
+			tlfID:       tlfID,
+			indexer:     indexer,
+			pathnameKey: pathnameKey,
+		}
+
+		directoryInfos[absDir] = dirInfo
 	}
 
 	cli := &Client{
-		searchCli:   searchCli,
-		directory:   absDir,
-		indexer:     indexer,
-		pathnameKey: pathnameKey,
+		searchCli:      searchCli,
+		directoryInfos: directoryInfos,
 	}
 
 	return cli, nil
 }
 
-// AddFile indexes a file with the given `pathname` and writes the index to the
-// server.
-func (c *Client) AddFile(pathname string) error {
-	relPath, err := relPathStrict(c.directory, pathname)
+// getDirectoryInfo is a helper function that gets the DirectoryInfo for
+// `directory`.  Returns an error if the `directory` provided is invalid or
+// not present in the current client.
+func (c *Client) getDirectoryInfo(directory string) (DirectoryInfo, error) {
+	absDir, err := filepath.Abs(directory)
+	if err != nil {
+		return DirectoryInfo{}, err
+	}
+
+	dirInfo, ok := c.directoryInfos[absDir]
+	if !ok {
+		return DirectoryInfo{}, errors.New("invalid directory name provided")
+	}
+
+	return dirInfo, nil
+}
+
+// AddFile indexes a file in `directory` with the given `pathname` and writes
+// the index to the server.
+func (c *Client) AddFile(directory, pathname string) error {
+	dirInfo, err := c.getDirectoryInfo(directory)
 	if err != nil {
 		return err
 	}
 
-	docID, err := pathnameToDocID(relPath, c.pathnameKey)
+	relPath, err := relPathStrict(dirInfo.absDir, pathname)
+	if err != nil {
+		return err
+	}
+
+	docID, err := pathnameToDocID(relPath, dirInfo.pathnameKey)
 	if err != nil {
 		return err
 	}
@@ -155,7 +203,7 @@ func (c *Client) AddFile(pathname string) error {
 		return err
 	}
 
-	secIndex, err := c.indexer.BuildSecureIndex(file, fileInfo.Size())
+	secIndex, err := dirInfo.indexer.BuildSecureIndex(file, fileInfo.Size())
 	if err != nil {
 		return err
 	}
@@ -165,68 +213,84 @@ func (c *Client) AddFile(pathname string) error {
 		return err
 	}
 
-	return c.searchCli.WriteIndex(context.TODO(), sserver1.WriteIndexArg{SecureIndex: secIndexBytes, DocID: docID})
+	return c.searchCli.WriteIndex(context.TODO(), sserver1.WriteIndexArg{TlfID: dirInfo.tlfID, SecureIndex: secIndexBytes, DocID: docID})
 }
 
-// RenameFile is called when a file has been renamed from `orig` to `curr`.
-// This will rename their corresponding indexes.  Returns an error if the
-// filenames are invalid.
-func (c *Client) RenameFile(orig, curr string) error {
-	relOrig, err := relPathStrict(c.directory, orig)
+// RenameFile is called when a file in `directory` has been renamed from `orig`
+// to `curr`.  This will rename their corresponding indexes.  Returns an error
+// if the filenames are invalid.
+func (c *Client) RenameFile(directory string, orig, curr string) error {
+	dirInfo, err := c.getDirectoryInfo(directory)
 	if err != nil {
 		return err
 	}
 
-	relCurr, err := relPathStrict(c.directory, curr)
+	relOrig, err := relPathStrict(dirInfo.absDir, orig)
 	if err != nil {
 		return err
 	}
 
-	origDocID, err := pathnameToDocID(relOrig, c.pathnameKey)
+	relCurr, err := relPathStrict(dirInfo.absDir, curr)
 	if err != nil {
 		return err
 	}
 
-	currDocID, err := pathnameToDocID(relCurr, c.pathnameKey)
+	origDocID, err := pathnameToDocID(relOrig, dirInfo.pathnameKey)
 	if err != nil {
 		return err
 	}
 
-	return c.searchCli.RenameIndex(context.TODO(), sserver1.RenameIndexArg{Orig: origDocID, Curr: currDocID})
+	currDocID, err := pathnameToDocID(relCurr, dirInfo.pathnameKey)
+	if err != nil {
+		return err
+	}
+
+	return c.searchCli.RenameIndex(context.TODO(), sserver1.RenameIndexArg{TlfID: dirInfo.tlfID, Orig: origDocID, Curr: currDocID})
 }
 
-// DeleteFile deletes the index on the server associated with `pathname`.
-func (c *Client) DeleteFile(pathname string) error {
-	relPath, err := relPathStrict(c.directory, pathname)
+// DeleteFile deletes the index on the server associated with `pathname` in
+// `directory`.
+func (c *Client) DeleteFile(directory string, pathname string) error {
+	dirInfo, err := c.getDirectoryInfo(directory)
 	if err != nil {
 		return err
 	}
 
-	docID, err := pathnameToDocID(relPath, c.pathnameKey)
+	relPath, err := relPathStrict(dirInfo.absDir, pathname)
 	if err != nil {
 		return err
 	}
 
-	return c.searchCli.DeleteIndex(context.Background(), docID)
+	docID, err := pathnameToDocID(relPath, dirInfo.pathnameKey)
+	if err != nil {
+		return err
+	}
+
+	return c.searchCli.DeleteIndex(context.Background(), sserver1.DeleteIndexArg{TlfID: dirInfo.tlfID, DocID: docID})
 }
 
 // SearchWord performs a search request on the search server and returns the
-// list of filenames possibly containing the word.
+// list of filenames in `directory` possibly containing the `word`.
 // NOTE: False positives are possible.
-func (c *Client) SearchWord(word string) ([]string, error) {
-	trapdoors := c.indexer.ComputeTrapdoors(word)
-	documents, err := c.searchCli.SearchWord(context.TODO(), trapdoors)
+func (c *Client) SearchWord(directory, word string) ([]string, error) {
+	dirInfo, err := c.getDirectoryInfo(directory)
+	if err != nil {
+		return nil, err
+	}
+
+	trapdoors := dirInfo.indexer.ComputeTrapdoors(word)
+	documents, err := c.searchCli.SearchWord(context.TODO(), sserver1.SearchWordArg{TlfID: dirInfo.tlfID, Trapdoors: trapdoors})
 	if err != nil {
 		return nil, err
 	}
 
 	filenames := make([]string, len(documents))
 	for i, docID := range documents {
-		pathname, err := docIDToPathname(docID, c.pathnameKey)
+		pathname, err := docIDToPathname(docID, dirInfo.pathnameKey)
 		if err != nil {
 			return nil, err
 		}
-		filenames[i] = filepath.Join(c.directory, pathname)
+		filenames[i] = filepath.Join(dirInfo.absDir, pathname)
 	}
 
 	sort.Strings(filenames)
@@ -236,8 +300,8 @@ func (c *Client) SearchWord(word string) ([]string, error) {
 // SearchWordStrict is similar to `SearchWord`, but it uses a `grep` command to
 // eliminate the possible false positives.  The `word` must have an exact match
 // (cases ignored) in the file.
-func (c *Client) SearchWordStrict(word string) ([]string, error) {
-	files, err := c.SearchWord(word)
+func (c *Client) SearchWordStrict(directory, word string) ([]string, error) {
+	files, err := c.SearchWord(directory, word)
 	if err != nil {
 		return nil, err
 	}
