@@ -33,9 +33,18 @@ type SearchWordArg struct {
 }
 
 type GetSaltsArg struct {
+	TlfID FolderID `codec:"tlfID" json:"tlfID"`
 }
 
 type GetSizeArg struct {
+	TlfID FolderID `codec:"tlfID" json:"tlfID"`
+}
+
+type AddTLFArg struct {
+	TlfID        FolderID `codec:"tlfID" json:"tlfID"`
+	LenSalt      int      `codec:"lenSalt" json:"lenSalt"`
+	FpRate       float64  `codec:"fpRate" json:"fpRate"`
+	NumUniqWords int64    `codec:"numUniqWords" json:"numUniqWords"`
 }
 
 type SearchServerInterface interface {
@@ -43,8 +52,9 @@ type SearchServerInterface interface {
 	RenameIndex(context.Context, RenameIndexArg) error
 	DeleteIndex(context.Context, DeleteIndexArg) error
 	SearchWord(context.Context, SearchWordArg) ([]DocumentID, error)
-	GetSalts(context.Context) ([][]byte, error)
-	GetSize(context.Context) (int64, error)
+	GetSalts(context.Context, FolderID) ([][]byte, error)
+	GetSize(context.Context, FolderID) (int64, error)
+	AddTLF(context.Context, AddTLFArg) error
 }
 
 func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
@@ -121,7 +131,12 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 					return &ret
 				},
 				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
-					ret, err = i.GetSalts(ctx)
+					typedArgs, ok := args.(*[]GetSaltsArg)
+					if !ok {
+						err = rpc.NewTypeError((*[]GetSaltsArg)(nil), args)
+						return
+					}
+					ret, err = i.GetSalts(ctx, (*typedArgs)[0].TlfID)
 					return
 				},
 				MethodType: rpc.MethodCall,
@@ -132,7 +147,28 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 					return &ret
 				},
 				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
-					ret, err = i.GetSize(ctx)
+					typedArgs, ok := args.(*[]GetSizeArg)
+					if !ok {
+						err = rpc.NewTypeError((*[]GetSizeArg)(nil), args)
+						return
+					}
+					ret, err = i.GetSize(ctx, (*typedArgs)[0].TlfID)
+					return
+				},
+				MethodType: rpc.MethodCall,
+			},
+			"addTLF": {
+				MakeArg: func() interface{} {
+					ret := make([]AddTLFArg, 1)
+					return &ret
+				},
+				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
+					typedArgs, ok := args.(*[]AddTLFArg)
+					if !ok {
+						err = rpc.NewTypeError((*[]AddTLFArg)(nil), args)
+						return
+					}
+					err = i.AddTLF(ctx, (*typedArgs)[0])
 					return
 				},
 				MethodType: rpc.MethodCall,
@@ -165,12 +201,19 @@ func (c SearchServerClient) SearchWord(ctx context.Context, __arg SearchWordArg)
 	return
 }
 
-func (c SearchServerClient) GetSalts(ctx context.Context) (res [][]byte, err error) {
-	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSalts", []interface{}{GetSaltsArg{}}, &res)
+func (c SearchServerClient) GetSalts(ctx context.Context, tlfID FolderID) (res [][]byte, err error) {
+	__arg := GetSaltsArg{TlfID: tlfID}
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSalts", []interface{}{__arg}, &res)
 	return
 }
 
-func (c SearchServerClient) GetSize(ctx context.Context) (res int64, err error) {
-	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSize", []interface{}{GetSizeArg{}}, &res)
+func (c SearchServerClient) GetSize(ctx context.Context, tlfID FolderID) (res int64, err error) {
+	__arg := GetSizeArg{TlfID: tlfID}
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSize", []interface{}{__arg}, &res)
+	return
+}
+
+func (c SearchServerClient) AddTLF(ctx context.Context, __arg AddTLFArg) (err error) {
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.addTLF", []interface{}{__arg}, nil)
 	return
 }
