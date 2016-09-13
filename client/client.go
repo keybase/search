@@ -95,7 +95,8 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 // CreateClient creates a new `Client` instance with the parameters and returns
 // a pointer the the instance.  Returns an error on any failure.
 func CreateClient(ctx context.Context, ipAddr string, port int, masterSecrets [][]byte, directories []string, verbose bool) (*Client, error) {
-	conn := rpc.NewTLSConnection(fmt.Sprintf("%s:%d", ipAddr, port), []byte(libsearch.TestRootCert), libkb.ErrorUnwrapper{}, &Client{}, true, rpc.NewSimpleLogFactory(logOutput{verbose: verbose}, nil), libkb.WrapError, logOutput{verbose: verbose}, logTags)
+	serverAddr := fmt.Sprintf("%s:%d", ipAddr, port)
+	conn := rpc.NewTLSConnection(serverAddr, libsearch.GetRootCerts(serverAddr), libkb.ErrorUnwrapper{}, &Client{}, true, rpc.NewSimpleLogFactory(logOutput{verbose: verbose}, nil), libkb.WrapError, logOutput{verbose: verbose}, logTags)
 
 	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 
