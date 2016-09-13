@@ -13,5 +13,5 @@ protocol searchServer {
   array<DocumentID> searchWord(FolderID tlfID, array<bytes> trapdoors);
   array<bytes> getSalts(FolderID tlfID);
   long getSize(FolderID tlfID);
-  void addTLF(FolderID tlfID, int lenSalt, double fpRate, long numUniqWords);
+  void registerTlf(FolderID tlfID, int lenSalt, double fpRate, long numUniqWords);
 }

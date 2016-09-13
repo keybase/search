@@ -40,7 +40,7 @@ type GetSizeArg struct {
 	TlfID FolderID `codec:"tlfID" json:"tlfID"`
 }
 
-type AddTLFArg struct {
+type RegisterTlfArg struct {
 	TlfID        FolderID `codec:"tlfID" json:"tlfID"`
 	LenSalt      int      `codec:"lenSalt" json:"lenSalt"`
 	FpRate       float64  `codec:"fpRate" json:"fpRate"`
@@ -54,7 +54,7 @@ type SearchServerInterface interface {
 	SearchWord(context.Context, SearchWordArg) ([]DocumentID, error)
 	GetSalts(context.Context, FolderID) ([][]byte, error)
 	GetSize(context.Context, FolderID) (int64, error)
-	AddTLF(context.Context, AddTLFArg) error
+	RegisterTlf(context.Context, RegisterTlfArg) error
 }
 
 func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
@@ -157,18 +157,18 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 				},
 				MethodType: rpc.MethodCall,
 			},
-			"addTLF": {
+			"registerTlf": {
 				MakeArg: func() interface{} {
-					ret := make([]AddTLFArg, 1)
+					ret := make([]RegisterTlfArg, 1)
 					return &ret
 				},
 				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
-					typedArgs, ok := args.(*[]AddTLFArg)
+					typedArgs, ok := args.(*[]RegisterTlfArg)
 					if !ok {
-						err = rpc.NewTypeError((*[]AddTLFArg)(nil), args)
+						err = rpc.NewTypeError((*[]RegisterTlfArg)(nil), args)
 						return
 					}
-					err = i.AddTLF(ctx, (*typedArgs)[0])
+					err = i.RegisterTlf(ctx, (*typedArgs)[0])
 					return
 				},
 				MethodType: rpc.MethodCall,
@@ -213,7 +213,7 @@ func (c SearchServerClient) GetSize(ctx context.Context, tlfID FolderID) (res in
 	return
 }
 
-func (c SearchServerClient) AddTLF(ctx context.Context, __arg AddTLFArg) (err error) {
-	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.addTLF", []interface{}{__arg}, nil)
+func (c SearchServerClient) RegisterTlf(ctx context.Context, __arg RegisterTlfArg) (err error) {
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.registerTlf", []interface{}{__arg}, nil)
 	return
 }
