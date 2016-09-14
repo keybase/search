@@ -7,10 +7,14 @@ protocol searchServer {
   @typedef("string")
   record FolderID {}
 
+  record TlfInfo {
+    array<bytes> salts;
+    long size;
+  }
+
   void writeIndex(FolderID tlfID, bytes secureIndex, DocumentID docID);
   void renameIndex(FolderID tlfID, DocumentID orig, DocumentID curr);
   void deleteIndex(FolderID tlfID, DocumentID docID);
   array<DocumentID> searchWord(FolderID tlfID, array<bytes> trapdoors);
-  array<bytes>  getSalts();
-  long getSize();
+  TlfInfo registerTlfIfNotExists(FolderID tlfID, int lenSalt, double fpRate, long numUniqWords);
 }

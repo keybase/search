@@ -94,33 +94,22 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 
 // CreateClient creates a new `Client` instance with the parameters and returns
 // a pointer the the instance.  Returns an error on any failure.
-func CreateClient(ctx context.Context, ipAddr string, port int, masterSecrets [][]byte, directories []string, verbose bool) (*Client, error) {
+func CreateClient(ctx context.Context, ipAddr string, port int, masterSecrets [][]byte, directories []string, lenSalt int, fpRate float64, numUniqWords uint64, verbose bool) (*Client, error) {
 	serverAddr := fmt.Sprintf("%s:%d", ipAddr, port)
 	conn := rpc.NewTLSConnection(serverAddr, libsearch.GetRootCerts(serverAddr), libkb.ErrorUnwrapper{}, &Client{}, true, rpc.NewSimpleLogFactory(logOutput{verbose: verbose}, nil), libkb.WrapError, logOutput{verbose: verbose}, logTags)
 
 	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 
-	return createClientWithClient(ctx, searchCli, masterSecrets, directories)
+	return createClientWithClient(ctx, searchCli, masterSecrets, directories, lenSalt, fpRate, numUniqWords)
 }
 
 // createClient creates a new `Client` with a given SearchServerInterface.
 // Should only be used internally and for tests.
-func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServerInterface, masterSecrets [][]byte, directories []string) (*Client, error) {
-	salts, err := searchCli.GetSalts(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	size, err := searchCli.GetSize(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServerInterface, masterSecrets [][]byte, directories []string, lenSalt int, fpRate float64, numUniqWords uint64) (*Client, error) {
 	directoryInfos := make(map[string]DirectoryInfo)
 
 	// Initializes the info for each directory.
 	for i, directory := range directories {
-		indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecrets[i], salts, uint64(size))
 
 		var pathnameKey [32]byte
 		copy(pathnameKey[:], masterSecrets[i][0:32])
@@ -134,6 +123,13 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 		if err != nil {
 			return nil, err
 		}
+
+		tlfInfo, err := searchCli.RegisterTlfIfNotExists(ctx, sserver1.RegisterTlfIfNotExistsArg{TlfID: tlfID, LenSalt: lenSalt, FpRate: fpRate, NumUniqWords: int64(numUniqWords)})
+		if err != nil {
+			return nil, err
+		}
+
+		indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecrets[i], tlfInfo.Salts, uint64(tlfInfo.Size))
 
 		dirInfo := DirectoryInfo{
 			absDir:      absDir,

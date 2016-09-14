@@ -16,6 +16,9 @@ import (
 	"golang.org/x/net/context"
 )
 
+var lenSalt = flag.Int("len_salt", 8, "the length of the salts used to generate the PRFs")
+var fpRate = flag.Float64("fp_rate", 0.000001, "the desired false positive rate for searchable encryption")
+var numUniqWords = flag.Uint64("num_words", uint64(100000), "the expected number of unique words in all the documents within one TLF")
 var clientDirectories = flag.String("client_dirs", "/keybase/private/jiaxin,songgao;/keybase/private/jiaxin,strib", "the keybase directories for the client where the files should be indexed, separated by ';'")
 var port = flag.Int("port", 8022, "the port that the search server is listening on")
 var ipAddr = flag.String("ip_addr", "127.0.0.1", "the IP address that the search server is listening on")
@@ -154,7 +157,7 @@ func main() {
 	}
 
 	// Initiate the search client
-	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, masterSecrets, clientDirs, *verbose)
+	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, masterSecrets, clientDirs, *lenSalt, *fpRate, *numUniqWords, *verbose)
 	if err != nil {
 		fmt.Printf("Cannot initialize the client: %s\n", err)
 		os.Exit(1)
