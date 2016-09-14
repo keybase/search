@@ -56,12 +56,8 @@ func (c *FakeServerClient) SearchWord(_ context.Context, arg sserver1.SearchWord
 	}
 }
 
-func (c *FakeServerClient) GetSalts(_ context.Context) ([][]byte, error) {
-	return nil, nil
-}
-
-func (c *FakeServerClient) GetSize(_ context.Context) (int64, error) {
-	return 10000, nil
+func (c *FakeServerClient) RegisterTlfIfNotExists(_ context.Context, _ sserver1.RegisterTlfIfNotExistsArg) (sserver1.TlfInfo, error) {
+	return sserver1.TlfInfo{Salts: nil, Size: 10000}, nil
 }
 
 // startTestClient creates an instance of a test client and returns a pointer to
@@ -87,7 +83,7 @@ func startTestClient(t *testing.T) (*Client, string) {
 	masterSecrets := [][]byte{[]byte("This is a simple test string")}
 	searchCli := &FakeServerClient{docIDs: make([]sserver1.DocumentID, 0, 5)}
 
-	cli, err := createClientWithClient(context.Background(), searchCli, masterSecrets, []string{cliDir})
+	cli, err := createClientWithClient(context.Background(), searchCli, masterSecrets, []string{cliDir}, 8, 0.000001, 1000)
 	if err != nil {
 		t.Fatalf("Error when creating the client: %s", err)
 	}
