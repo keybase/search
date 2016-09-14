@@ -125,6 +125,9 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 		}
 
 		tlfInfo, err := searchCli.RegisterTlfIfNotExists(ctx, sserver1.RegisterTlfIfNotExistsArg{TlfID: tlfID, LenSalt: lenSalt, FpRate: fpRate, NumUniqWords: int64(numUniqWords)})
+		if err != nil {
+			return nil, err
+		}
 
 		indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecrets[i], tlfInfo.Salts, uint64(tlfInfo.Size))
 
