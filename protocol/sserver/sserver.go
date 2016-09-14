@@ -10,6 +10,11 @@ import (
 
 type DocumentID string
 type FolderID string
+type TlfInfo struct {
+	Salts [][]byte `codec:"salts" json:"salts"`
+	Size  int64    `codec:"size" json:"size"`
+}
+
 type WriteIndexArg struct {
 	TlfID       FolderID   `codec:"tlfID" json:"tlfID"`
 	SecureIndex []byte     `codec:"secureIndex" json:"secureIndex"`
@@ -32,15 +37,7 @@ type SearchWordArg struct {
 	Trapdoors [][]byte `codec:"trapdoors" json:"trapdoors"`
 }
 
-type GetSaltsArg struct {
-	TlfID FolderID `codec:"tlfID" json:"tlfID"`
-}
-
-type GetSizeArg struct {
-	TlfID FolderID `codec:"tlfID" json:"tlfID"`
-}
-
-type RegisterTlfArg struct {
+type RegisterTlfIfNotExistsArg struct {
 	TlfID        FolderID `codec:"tlfID" json:"tlfID"`
 	LenSalt      int      `codec:"lenSalt" json:"lenSalt"`
 	FpRate       float64  `codec:"fpRate" json:"fpRate"`
@@ -52,9 +49,7 @@ type SearchServerInterface interface {
 	RenameIndex(context.Context, RenameIndexArg) error
 	DeleteIndex(context.Context, DeleteIndexArg) error
 	SearchWord(context.Context, SearchWordArg) ([]DocumentID, error)
-	GetSalts(context.Context, FolderID) ([][]byte, error)
-	GetSize(context.Context, FolderID) (int64, error)
-	RegisterTlf(context.Context, RegisterTlfArg) error
+	RegisterTlfIfNotExists(context.Context, RegisterTlfIfNotExistsArg) (TlfInfo, error)
 }
 
 func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
@@ -125,50 +120,18 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 				},
 				MethodType: rpc.MethodCall,
 			},
-			"getSalts": {
+			"registerTlfIfNotExists": {
 				MakeArg: func() interface{} {
-					ret := make([]GetSaltsArg, 1)
+					ret := make([]RegisterTlfIfNotExistsArg, 1)
 					return &ret
 				},
 				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
-					typedArgs, ok := args.(*[]GetSaltsArg)
+					typedArgs, ok := args.(*[]RegisterTlfIfNotExistsArg)
 					if !ok {
-						err = rpc.NewTypeError((*[]GetSaltsArg)(nil), args)
+						err = rpc.NewTypeError((*[]RegisterTlfIfNotExistsArg)(nil), args)
 						return
 					}
-					ret, err = i.GetSalts(ctx, (*typedArgs)[0].TlfID)
-					return
-				},
-				MethodType: rpc.MethodCall,
-			},
-			"getSize": {
-				MakeArg: func() interface{} {
-					ret := make([]GetSizeArg, 1)
-					return &ret
-				},
-				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
-					typedArgs, ok := args.(*[]GetSizeArg)
-					if !ok {
-						err = rpc.NewTypeError((*[]GetSizeArg)(nil), args)
-						return
-					}
-					ret, err = i.GetSize(ctx, (*typedArgs)[0].TlfID)
-					return
-				},
-				MethodType: rpc.MethodCall,
-			},
-			"registerTlf": {
-				MakeArg: func() interface{} {
-					ret := make([]RegisterTlfArg, 1)
-					return &ret
-				},
-				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
-					typedArgs, ok := args.(*[]RegisterTlfArg)
-					if !ok {
-						err = rpc.NewTypeError((*[]RegisterTlfArg)(nil), args)
-						return
-					}
-					err = i.RegisterTlf(ctx, (*typedArgs)[0])
+					ret, err = i.RegisterTlfIfNotExists(ctx, (*typedArgs)[0])
 					return
 				},
 				MethodType: rpc.MethodCall,
@@ -201,19 +164,7 @@ func (c SearchServerClient) SearchWord(ctx context.Context, __arg SearchWordArg)
 	return
 }
 
-func (c SearchServerClient) GetSalts(ctx context.Context, tlfID FolderID) (res [][]byte, err error) {
-	__arg := GetSaltsArg{TlfID: tlfID}
-	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSalts", []interface{}{__arg}, &res)
-	return
-}
-
-func (c SearchServerClient) GetSize(ctx context.Context, tlfID FolderID) (res int64, err error) {
-	__arg := GetSizeArg{TlfID: tlfID}
-	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getSize", []interface{}{__arg}, &res)
-	return
-}
-
-func (c SearchServerClient) RegisterTlf(ctx context.Context, __arg RegisterTlfArg) (err error) {
-	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.registerTlf", []interface{}{__arg}, nil)
+func (c SearchServerClient) RegisterTlfIfNotExists(ctx context.Context, __arg RegisterTlfIfNotExistsArg) (res TlfInfo, err error) {
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.registerTlfIfNotExists", []interface{}{__arg}, &res)
 	return
 }
