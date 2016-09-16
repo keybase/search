@@ -27,12 +27,12 @@ func TestDocID(t *testing.T) {
 
 	pathname := "path/to/a/test/file"
 
-	docID, err := pathnameToDocID(pathname, key1)
+	docID, err := pathnameToDocID(0, pathname, key1)
 	if err != nil {
 		t.Fatalf("error when encrypting the pathname: %s", err)
 	}
 
-	pathnameRetrieved, err := docIDToPathname(docID, key1)
+	pathnameRetrieved, err := docIDToPathname(docID, [][32]byte{key1})
 	if err != nil {
 		t.Fatalf("error when decrypting the pathname: %s", err)
 	}
@@ -41,7 +41,7 @@ func TestDocID(t *testing.T) {
 		t.Fatalf("encrypting and then decrypting does not yield the original pathname")
 	}
 
-	pathname2, err := docIDToPathname(docID, key2)
+	pathname2, err := docIDToPathname(docID, [][32]byte{key2})
 	if err == nil && pathname == pathname2 {
 		t.Fatalf("encrypted pathname decrypted with a different key")
 	}
@@ -115,10 +115,11 @@ func TestRelPathStrict(t *testing.T) {
 	testRelPathStrictHelper(t, "same", "same", "", true)
 }
 
-// TestGetTlfID tests the `getTlfID` function.  Checks that the correct TLF ID
-// is retrieved.
-func TestGetTlfID(t *testing.T) {
+// TestGetTlfIDAndKeyGen tests the `getTlfIDAndKeyGen` function.  Checks that
+// the correct TLF ID and latest key generation are retrieved.
+func TestGetTlfIDAndKeyGen(t *testing.T) {
 	expectedTlfID := "randomrandomfolderID"
+	expectedKeyGen := libkbfs.KeyGen(42)
 
 	tempDir, err := ioutil.TempDir("", "TestTlfID")
 	if err != nil {
@@ -128,6 +129,7 @@ func TestGetTlfID(t *testing.T) {
 
 	var status libkbfs.FolderBranchStatus
 	status.FolderID = expectedTlfID
+	status.LatestKeyGeneration = expectedKeyGen
 	bytes, err := json.MarshalIndent(status, "", "  ")
 	if err != nil {
 		t.Fatalf("error when writing the TLF status: %s", err)
@@ -137,11 +139,14 @@ func TestGetTlfID(t *testing.T) {
 		t.Fatalf("error when writing the TLF status: %s", err)
 	}
 
-	actualTlfID, err := getTlfID(tempDir)
+	actualTlfID, actualKeyGen, err := getTlfIDAndKeyGen(tempDir)
 	if err != nil {
 		t.Fatalf("error when reading the TLF ID: %s", err)
 	}
 	if actualTlfID.String() != expectedTlfID {
 		t.Fatalf("unmatching TLF IDs: expected \"%s\" actual \"%s\"", expectedTlfID, actualTlfID)
+	}
+	if actualKeyGen != expectedKeyGen {
+		t.Fatalf("unmatching key generations: expected \"%d\" actual \"%d\"", expectedKeyGen, actualKeyGen)
 	}
 }

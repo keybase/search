@@ -18,7 +18,7 @@ import (
 
 // The length of the overhead added to padding.
 const padPrefixLength = 4
-const docIDVersionLength = 4
+const docIDVersionLength = 8
 const docIDNonceLength = 24
 const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 
@@ -26,7 +26,7 @@ const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 // NOTE: Instead of using random nonce and padding, we need to use deterministic
 // ones, because we want the encryptions of the same pathname to always yield the
 // same result.
-func pathnameToDocID(pathname string, key [32]byte) (sserver1.DocumentID, error) {
+func pathnameToDocID(keyGen libkbfs.KeyGen, pathname string, key [32]byte) (sserver1.DocumentID, error) {
 	var nonce [docIDNonceLength]byte
 	cksum := sha256.Sum256([]byte(pathname))
 	copy(nonce[:], cksum[0:docIDNonceLength])
@@ -39,21 +39,35 @@ func pathnameToDocID(pathname string, key [32]byte) (sserver1.DocumentID, error)
 	sealedBox := secretbox.Seal(nil, paddedPathname, &nonce, &key)
 
 	var version [docIDVersionLength]byte
-	// TODO: initialize version number
+	versionBuf := bytes.NewBuffer(version[:])
+
+	if err := binary.Write(versionBuf, binary.LittleEndian, int64(keyGen)); err != nil {
+		return sserver1.DocumentID(""), err
+	}
 
 	docIDRaw := append(append(version[:], nonce[:]...), sealedBox...)
 
 	return sserver1.DocumentID(base64.RawURLEncoding.EncodeToString(docIDRaw)), nil
 }
 
-// docIDToPathname decrypts a `docID` to get the actual pathname by using `key`.
-func docIDToPathname(docID sserver1.DocumentID, key [32]byte) (string, error) {
+// docIDToPathname decrypts a `docID` to get the actual pathname by using the
+// `keys`.
+func docIDToPathname(docID sserver1.DocumentID, keys [][32]byte) (string, error) {
 	docIDRaw, err := base64.RawURLEncoding.DecodeString(docID.String())
 	if err != nil {
 		return "", err
 	}
+
+	var keyGen int64
+	versionBuf := bytes.NewBuffer(docIDRaw[0:docIDVersionLength])
+	if err := binary.Read(versionBuf, binary.LittleEndian, &keyGen); err != nil {
+		return "", err
+	}
+	key := keys[keyGen]
+
 	var nonce [docIDNonceLength]byte
 	copy(nonce[:], docIDRaw[docIDVersionLength:docIDPrefixLength])
+
 	pathnameRaw, ok := secretbox.Open(nil, docIDRaw[docIDPrefixLength:], &nonce, &key)
 	if !ok {
 		return "", errors.New("invalid document ID")
@@ -145,17 +159,18 @@ func relPathStrict(basepath, targpath string) (string, error) {
 	return relPath, nil
 }
 
-// getTlfID gets the TLF ID of a directory.  Returns an error if no TLF ID can
-// be found for that directory.
-func getTlfID(directory string) (sserver1.FolderID, error) {
+// getTlfIDAndKeyGen gets the TLF ID and the latest key generation of a
+// directory.  Returns an error if TLF ID or the latest key generation cannot be
+// acquired for that directory.
+func getTlfIDAndKeyGen(directory string) (sserver1.FolderID, libkbfs.KeyGen, error) {
 	statusJSON, err := ioutil.ReadFile(filepath.Join(directory, ".kbfs_status"))
 	if err != nil {
-		return sserver1.FolderID(""), err
+		return sserver1.FolderID(""), 0, err
 	}
 	var folderStatus libkbfs.FolderBranchStatus
 	err = json.Unmarshal(statusJSON, &folderStatus)
 	if err != nil {
-		return sserver1.FolderID(""), err
+		return sserver1.FolderID(""), 0, err
 	}
-	return sserver1.FolderID(folderStatus.FolderID), nil
+	return sserver1.FolderID(folderStatus.FolderID), folderStatus.LatestKeyGeneration, nil
 }
