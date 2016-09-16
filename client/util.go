@@ -18,7 +18,7 @@ import (
 
 // The length of the overhead added to padding.
 const padPrefixLength = 4
-const docIDVersionLength = 2
+const docIDVersionLength = 4
 const docIDNonceLength = 24
 const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 
