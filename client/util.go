@@ -29,7 +29,7 @@ const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 func pathnameToDocID(pathname string, key [32]byte) (sserver1.DocumentID, error) {
 	var nonce [docIDNonceLength]byte
 	cksum := sha256.Sum256([]byte(pathname))
-	copy(nonce[:], cksum[0:24])
+	copy(nonce[:], cksum[0:docIDNonceLength])
 
 	paddedPathname, err := padPathname(pathname)
 	if err != nil {
