@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/keybase/client/go/libkb"
 	rpc "github.com/keybase/go-framed-msgpack-rpc"
+	"github.com/keybase/kbfs/libkbfs"
 	"github.com/keybase/search/libsearch"
 	sserver1 "github.com/keybase/search/protocol/sserver"
 	"golang.org/x/net/context"
@@ -24,10 +26,12 @@ type PathnameKeyType [32]byte
 
 // DirectoryInfo holds necessary information for a KBFS-mounted directory.
 type DirectoryInfo struct {
-	absDir      string                        // The absolute path of the directory.
-	tlfID       sserver1.FolderID             // The TLF ID of the directory.
-	indexer     *libsearch.SecureIndexBuilder // The indexer for the directory.
-	pathnameKey PathnameKeyType               // The key to encrypt and decrypt the pathname to/from document IDs.
+	absDir       string                          // The absolute path of the directory.
+	tlfID        sserver1.FolderID               // The TLF ID of the directory.
+	keyGenLock   sync.RWMutex                    // The RWMutex to protect the `keyGen` variable.
+	keyGen       libkbfs.KeyGen                  // The lastest key generation of this directory.
+	indexers     []*libsearch.SecureIndexBuilder // The indexer for the directory.
+	pathnameKeys []PathnameKeyType               // The key to encrypt and decrypt the pathname to/from document IDs.
 }
 
 // Client contains all the necessary information for a KBFS Search Client.
@@ -35,7 +39,7 @@ type DirectoryInfo struct {
 // execution is allowed.
 type Client struct {
 	searchCli      sserver1.SearchServerInterface // The client that talks to the RPC Search Server.
-	directoryInfos map[string]DirectoryInfo       // The map from the directories to the DirectoryInfo's.
+	directoryInfos map[string]*DirectoryInfo      // The map from the directories to the DirectoryInfo's.
 }
 
 // HandlerName implements the ConnectionHandler interface.
@@ -92,34 +96,43 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 	return nil, false
 }
 
+// getKeyIndex is the thread-safe helper function that calculates the index of
+// the key to use for building the index or trapdoor word.
+func (d *DirectoryInfo) getKeyIndex() int {
+	d.keyGenLock.RLock()
+	defer d.keyGenLock.RUnlock()
+	keyGen := d.keyGen
+	if keyGen == libkbfs.PublicKeyGen {
+		keyGen = libkbfs.FirstValidKeyGen
+	}
+	return int(keyGen - libkbfs.FirstValidKeyGen)
+}
+
 // CreateClient creates a new `Client` instance with the parameters and returns
 // a pointer the the instance.  Returns an error on any failure.
-func CreateClient(ctx context.Context, ipAddr string, port int, masterSecrets [][]byte, directories []string, lenSalt int, fpRate float64, numUniqWords uint64, verbose bool) (*Client, error) {
+func CreateClient(ctx context.Context, ipAddr string, port int, directories []string, lenMS, lenSalt int, fpRate float64, numUniqWords uint64, verbose bool) (*Client, error) {
 	serverAddr := fmt.Sprintf("%s:%d", ipAddr, port)
 	conn := rpc.NewTLSConnection(serverAddr, libsearch.GetRootCerts(serverAddr), libkb.ErrorUnwrapper{}, &Client{}, true, rpc.NewSimpleLogFactory(logOutput{verbose: verbose}, nil), libkb.WrapError, logOutput{verbose: verbose}, logTags)
 
 	searchCli := sserver1.SearchServerClient{Cli: conn.GetClient()}
 
-	return createClientWithClient(ctx, searchCli, masterSecrets, directories, lenSalt, fpRate, numUniqWords)
+	return createClientWithClient(ctx, searchCli, directories, lenMS, lenSalt, fpRate, numUniqWords)
 }
 
 // createClient creates a new `Client` with a given SearchServerInterface.
 // Should only be used internally and for tests.
-func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServerInterface, masterSecrets [][]byte, directories []string, lenSalt int, fpRate float64, numUniqWords uint64) (*Client, error) {
-	directoryInfos := make(map[string]DirectoryInfo)
+func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServerInterface, directories []string, lenMS, lenSalt int, fpRate float64, numUniqWords uint64) (*Client, error) {
+	directoryInfos := make(map[string]*DirectoryInfo)
 
 	// Initializes the info for each directory.
-	for i, directory := range directories {
-
-		var pathnameKey [32]byte
-		copy(pathnameKey[:], masterSecrets[i][0:32])
+	for _, directory := range directories {
 
 		absDir, err := filepath.Abs(directory)
 		if err != nil {
 			return nil, err
 		}
 
-		tlfID, err := getTlfID(absDir)
+		tlfID, keyGen, err := getTlfIDAndKeyGen(absDir)
 		if err != nil {
 			return nil, err
 		}
@@ -129,16 +142,41 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 			return nil, err
 		}
 
-		indexer := libsearch.CreateSecureIndexBuilder(sha256.New, masterSecrets[i], tlfInfo.Salts, uint64(tlfInfo.Size))
+		var indexers []*libsearch.SecureIndexBuilder
+		var pathnameKeys []PathnameKeyType
 
-		dirInfo := DirectoryInfo{
-			absDir:      absDir,
-			tlfID:       tlfID,
-			indexer:     indexer,
-			pathnameKey: pathnameKey,
+		// Sets up the indexers and pathname keys
+		if keyGen == libkbfs.PublicKeyGen {
+			masterSecret, err := fetchMasterSecret(directory, keyGen, lenMS)
+			if err != nil {
+				return nil, err
+			}
+			indexers = make([]*libsearch.SecureIndexBuilder, 1)
+			pathnameKeys = make([]PathnameKeyType, 1)
+			indexers[0] = libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, tlfInfo.Salts, uint64(tlfInfo.Size))
+			copy(pathnameKeys[0][:], masterSecret[0:32])
+		} else if keyGen >= libkbfs.FirstValidKeyGen {
+			indexers = make([]*libsearch.SecureIndexBuilder, keyGen)
+			pathnameKeys = make([]PathnameKeyType, keyGen)
+			for i := libkbfs.KeyGen(libkbfs.FirstValidKeyGen); i <= keyGen; i++ {
+				masterSecret, err := fetchMasterSecret(directory, i, lenMS)
+				if err != nil {
+					return nil, err
+				}
+				indexers[i-libkbfs.FirstValidKeyGen] = libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, tlfInfo.Salts, uint64(tlfInfo.Size))
+				copy(pathnameKeys[i-libkbfs.FirstValidKeyGen][:], masterSecret[0:32])
+			}
+		} else {
+			return nil, errors.New("invalid key generation")
 		}
 
-		directoryInfos[absDir] = dirInfo
+		directoryInfos[absDir] = &DirectoryInfo{
+			absDir:       absDir,
+			tlfID:        tlfID,
+			keyGen:       keyGen,
+			indexers:     indexers,
+			pathnameKeys: pathnameKeys,
+		}
 	}
 
 	cli := &Client{
@@ -152,15 +190,15 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 // getDirectoryInfo is a helper function that gets the DirectoryInfo for
 // `directory`.  Returns an error if the `directory` provided is invalid or
 // not present in the current client.
-func (c *Client) getDirectoryInfo(directory string) (DirectoryInfo, error) {
+func (c *Client) getDirectoryInfo(directory string) (*DirectoryInfo, error) {
 	absDir, err := filepath.Abs(directory)
 	if err != nil {
-		return DirectoryInfo{}, err
+		return nil, err
 	}
 
 	dirInfo, ok := c.directoryInfos[absDir]
 	if !ok {
-		return DirectoryInfo{}, errors.New("invalid directory name provided")
+		return nil, errors.New("invalid directory name provided")
 	}
 
 	return dirInfo, nil
@@ -179,7 +217,9 @@ func (c *Client) AddFile(directory, pathname string) error {
 		return err
 	}
 
-	docID, err := pathnameToDocID(relPath, dirInfo.pathnameKey)
+	keyIndex := dirInfo.getKeyIndex()
+
+	docID, err := pathnameToDocID(dirInfo.keyGen, relPath, dirInfo.pathnameKeys[keyIndex])
 	if err != nil {
 		return err
 	}
@@ -194,7 +234,7 @@ func (c *Client) AddFile(directory, pathname string) error {
 		return err
 	}
 
-	secIndex, err := dirInfo.indexer.BuildSecureIndex(file, fileInfo.Size())
+	secIndex, err := dirInfo.indexers[keyIndex].BuildSecureIndex(file, fileInfo.Size())
 	if err != nil {
 		return err
 	}
@@ -226,12 +266,14 @@ func (c *Client) RenameFile(directory string, orig, curr string) error {
 		return err
 	}
 
-	origDocID, err := pathnameToDocID(relOrig, dirInfo.pathnameKey)
+	keyIndex := dirInfo.getKeyIndex()
+
+	origDocID, err := pathnameToDocID(dirInfo.keyGen, relOrig, dirInfo.pathnameKeys[keyIndex])
 	if err != nil {
 		return err
 	}
 
-	currDocID, err := pathnameToDocID(relCurr, dirInfo.pathnameKey)
+	currDocID, err := pathnameToDocID(dirInfo.keyGen, relCurr, dirInfo.pathnameKeys[keyIndex])
 	if err != nil {
 		return err
 	}
@@ -252,7 +294,7 @@ func (c *Client) DeleteFile(directory string, pathname string) error {
 		return err
 	}
 
-	docID, err := pathnameToDocID(relPath, dirInfo.pathnameKey)
+	docID, err := pathnameToDocID(dirInfo.keyGen, relPath, dirInfo.pathnameKeys[dirInfo.getKeyIndex()])
 	if err != nil {
 		return err
 	}
@@ -269,7 +311,7 @@ func (c *Client) SearchWord(directory, word string) ([]string, error) {
 		return nil, err
 	}
 
-	trapdoors := dirInfo.indexer.ComputeTrapdoors(word)
+	trapdoors := dirInfo.indexers[dirInfo.getKeyIndex()].ComputeTrapdoors(word)
 	documents, err := c.searchCli.SearchWord(context.TODO(), sserver1.SearchWordArg{TlfID: dirInfo.tlfID, Trapdoors: trapdoors})
 	if err != nil {
 		return nil, err
@@ -277,7 +319,7 @@ func (c *Client) SearchWord(directory, word string) ([]string, error) {
 
 	filenames := make([]string, len(documents))
 	for i, docID := range documents {
-		pathname, err := docIDToPathname(docID, dirInfo.pathnameKey)
+		pathname, err := docIDToPathname(docID, [][32]byte{dirInfo.pathnameKeys[dirInfo.getKeyIndex()]})
 		if err != nil {
 			return nil, err
 		}
