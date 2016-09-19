@@ -28,7 +28,7 @@ func TestDocID(t *testing.T) {
 
 	pathname := "path/to/a/test/file"
 
-	docID, err := pathnameToDocID(0, pathname, key1)
+	docID, err := pathnameToDocID(1, pathname, key1)
 	if err != nil {
 		t.Fatalf("error when encrypting the pathname: %s", err)
 	}

@@ -41,14 +41,13 @@ func pathnameToDocID(keyGen libkbfs.KeyGen, pathname string, key [32]byte) (sser
 
 	sealedBox := secretbox.Seal(nil, paddedPathname, &nonce, &key)
 
-	var version [docIDVersionLength]byte
-	versionBuf := bytes.NewBuffer(version[:])
+	versionBuf := new(bytes.Buffer)
 
 	if err := binary.Write(versionBuf, binary.LittleEndian, int64(keyGen)); err != nil {
 		return sserver1.DocumentID(""), err
 	}
 
-	docIDRaw := append(append(version[:], nonce[:]...), sealedBox...)
+	docIDRaw := append(append(versionBuf.Bytes(), nonce[:]...), sealedBox...)
 
 	return sserver1.DocumentID(base64.RawURLEncoding.EncodeToString(docIDRaw)), nil
 }
@@ -66,7 +65,7 @@ func docIDToPathname(docID sserver1.DocumentID, keys [][32]byte) (string, error)
 	if err := binary.Read(versionBuf, binary.LittleEndian, &keyGen); err != nil {
 		return "", err
 	}
-	key := keys[keyGen]
+	key := keys[keyGen-libkbfs.FirstValidKeyGen]
 
 	var nonce [docIDNonceLength]byte
 	copy(nonce[:], docIDRaw[docIDVersionLength:docIDPrefixLength])
