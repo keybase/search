@@ -15,6 +15,11 @@ type TlfInfo struct {
 	Size  int64    `codec:"size" json:"size"`
 }
 
+type Trapdoor struct {
+	Codeword [][]byte `codec:"codeword" json:"codeword"`
+	KeyGen   int      `codec:"keyGen" json:"keyGen"`
+}
+
 type WriteIndexArg struct {
 	TlfID       FolderID   `codec:"tlfID" json:"tlfID"`
 	SecureIndex []byte     `codec:"secureIndex" json:"secureIndex"`
@@ -32,9 +37,13 @@ type DeleteIndexArg struct {
 	DocID DocumentID `codec:"docID" json:"docID"`
 }
 
+type GetKeyGensArg struct {
+	TlfID FolderID `codec:"tlfID" json:"tlfID"`
+}
+
 type SearchWordArg struct {
-	TlfID     FolderID `codec:"tlfID" json:"tlfID"`
-	Trapdoors [][]byte `codec:"trapdoors" json:"trapdoors"`
+	TlfID     FolderID            `codec:"tlfID" json:"tlfID"`
+	Trapdoors map[string]Trapdoor `codec:"trapdoors" json:"trapdoors"`
 }
 
 type RegisterTlfIfNotExistsArg struct {
@@ -48,6 +57,7 @@ type SearchServerInterface interface {
 	WriteIndex(context.Context, WriteIndexArg) error
 	RenameIndex(context.Context, RenameIndexArg) error
 	DeleteIndex(context.Context, DeleteIndexArg) error
+	GetKeyGens(context.Context, FolderID) ([]int, error)
 	SearchWord(context.Context, SearchWordArg) ([]DocumentID, error)
 	RegisterTlfIfNotExists(context.Context, RegisterTlfIfNotExistsArg) (TlfInfo, error)
 }
@@ -104,6 +114,22 @@ func SearchServerProtocol(i SearchServerInterface) rpc.Protocol {
 				},
 				MethodType: rpc.MethodCall,
 			},
+			"getKeyGens": {
+				MakeArg: func() interface{} {
+					ret := make([]GetKeyGensArg, 1)
+					return &ret
+				},
+				Handler: func(ctx context.Context, args interface{}) (ret interface{}, err error) {
+					typedArgs, ok := args.(*[]GetKeyGensArg)
+					if !ok {
+						err = rpc.NewTypeError((*[]GetKeyGensArg)(nil), args)
+						return
+					}
+					ret, err = i.GetKeyGens(ctx, (*typedArgs)[0].TlfID)
+					return
+				},
+				MethodType: rpc.MethodCall,
+			},
 			"searchWord": {
 				MakeArg: func() interface{} {
 					ret := make([]SearchWordArg, 1)
@@ -156,6 +182,12 @@ func (c SearchServerClient) RenameIndex(ctx context.Context, __arg RenameIndexAr
 
 func (c SearchServerClient) DeleteIndex(ctx context.Context, __arg DeleteIndexArg) (err error) {
 	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.deleteIndex", []interface{}{__arg}, nil)
+	return
+}
+
+func (c SearchServerClient) GetKeyGens(ctx context.Context, tlfID FolderID) (res []int, err error) {
+	__arg := GetKeyGensArg{TlfID: tlfID}
+	err = c.Cli.Call(ctx, "searchsrv.1.searchServer.getKeyGens", []interface{}{__arg}, &res)
 	return
 }
 
