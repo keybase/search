@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/json"
 	"io/ioutil"
@@ -148,5 +149,49 @@ func TestGetTlfIDAndKeyGen(t *testing.T) {
 	}
 	if actualKeyGen != expectedKeyGen {
 		t.Fatalf("unmatching key generations: expected \"%d\" actual \"%d\"", expectedKeyGen, actualKeyGen)
+	}
+}
+
+// TestFetchMasterSecret tests the `fetchMasterSecret` function.  Checks that
+// the master secrets are correctly generated and fetched, and that errors are
+// properly reported.
+func TestFetchMasterSecret(t *testing.T) {
+	dir, err := ioutil.TempDir("", "fetchMS")
+	if err != nil {
+		t.Fatalf("error when creating test directory: %s", err)
+	}
+	defer os.RemoveAll(dir)
+
+	ms1, err := fetchMasterSecret(dir, 1, 256)
+	if err != nil {
+		t.Fatalf("error when generating master secret: %s", err)
+	}
+	ms2, err := fetchMasterSecret(dir, 2, 128)
+	if err != nil {
+		t.Fatalf("error when generating master secret: %s", err)
+	}
+	if bytes.Equal(ms1, ms2) {
+		t.Fatalf("master secrets not randomly generated")
+	}
+
+	fetchedMs1, err := fetchMasterSecret(dir, 1, 256)
+	if err != nil {
+		t.Fatalf("error when fetching master secret: %s", err)
+	}
+	if !bytes.Equal(ms1, fetchedMs1) {
+		t.Fatalf("master secret changed after fetching")
+	}
+
+	fetchedMs2, err := fetchMasterSecret(dir, 2, 128)
+	if err != nil {
+		t.Fatalf("error when fetching master secret: %s", err)
+	}
+	if !bytes.Equal(ms2, fetchedMs2) {
+		t.Fatalf("master secret changed after fetching")
+	}
+
+	_, err = fetchMasterSecret(dir, 1, 128)
+	if err == nil || err.Error() != "Invalid master secret length" {
+		t.Fatalf("error not reported when master secret has unmatching length")
 	}
 }

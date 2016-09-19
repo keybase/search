@@ -2,13 +2,16 @@ package client
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/keybase/kbfs/libkbfs"
@@ -173,4 +176,37 @@ func getTlfIDAndKeyGen(directory string) (sserver1.FolderID, libkbfs.KeyGen, err
 		return sserver1.FolderID(""), 0, err
 	}
 	return sserver1.FolderID(folderStatus.FolderID), folderStatus.LatestKeyGeneration, nil
+}
+
+// fetchMasterSecret returns the master secret of the specific `keyGen` under
+// `directory`.
+func fetchMasterSecret(directory string, keyGen libkbfs.KeyGen, lenMS int) ([]byte, error) {
+	var masterSecret []byte
+	f, err := os.OpenFile(filepath.Join(directory, ".search_kbfs_secret_"+strconv.Itoa(int(keyGen))), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+
+	if err == nil {
+		defer f.Close()
+		// Generate a random master secret and write it to file
+		masterSecret = make([]byte, lenMS)
+		if _, err := rand.Read(masterSecret); err != nil {
+			return nil, err
+		}
+
+		_, err = f.Write(masterSecret)
+		if err != nil {
+			return nil, err
+		}
+	} else if os.IsExist(err) {
+		// Read the master secret from file
+		masterSecret, err = ioutil.ReadFile(filepath.Join(directory, ".search_kbfs_secret_"+strconv.Itoa(int(keyGen))))
+		if err != nil {
+			return nil, err
+		}
+		if len(masterSecret) != lenMS {
+			return nil, errors.New("Invalid master secret length")
+		}
+	} else {
+		return nil, err
+	}
+	return masterSecret, nil
 }
