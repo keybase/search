@@ -219,7 +219,7 @@ func (c *Client) AddFile(directory, pathname string) error {
 
 	keyIndex := dirInfo.getKeyIndex()
 
-	docID, err := pathnameToDocID(dirInfo.keyGen, relPath, dirInfo.pathnameKeys[keyIndex])
+	docID, err := libsearch.PathnameToDocID(dirInfo.keyGen, relPath, dirInfo.pathnameKeys[keyIndex])
 	if err != nil {
 		return err
 	}
@@ -268,12 +268,12 @@ func (c *Client) RenameFile(directory string, orig, curr string) error {
 
 	keyIndex := dirInfo.getKeyIndex()
 
-	origDocID, err := pathnameToDocID(dirInfo.keyGen, relOrig, dirInfo.pathnameKeys[keyIndex])
+	origDocID, err := libsearch.PathnameToDocID(dirInfo.keyGen, relOrig, dirInfo.pathnameKeys[keyIndex])
 	if err != nil {
 		return err
 	}
 
-	currDocID, err := pathnameToDocID(dirInfo.keyGen, relCurr, dirInfo.pathnameKeys[keyIndex])
+	currDocID, err := libsearch.PathnameToDocID(dirInfo.keyGen, relCurr, dirInfo.pathnameKeys[keyIndex])
 	if err != nil {
 		return err
 	}
@@ -294,7 +294,7 @@ func (c *Client) DeleteFile(directory string, pathname string) error {
 		return err
 	}
 
-	docID, err := pathnameToDocID(dirInfo.keyGen, relPath, dirInfo.pathnameKeys[dirInfo.getKeyIndex()])
+	docID, err := libsearch.PathnameToDocID(dirInfo.keyGen, relPath, dirInfo.pathnameKeys[dirInfo.getKeyIndex()])
 	if err != nil {
 		return err
 	}
@@ -311,15 +311,15 @@ func (c *Client) SearchWord(directory, word string) ([]string, error) {
 		return nil, err
 	}
 
-	trapdoors := dirInfo.indexers[dirInfo.getKeyIndex()].ComputeTrapdoors(word)
-	documents, err := c.searchCli.SearchWord(context.TODO(), sserver1.SearchWordArg{TlfID: dirInfo.tlfID, Trapdoors: trapdoors})
+	//	trapdoors := dirInfo.indexers[dirInfo.getKeyIndex()].ComputeTrapdoors(word)
+	documents, err := c.searchCli.SearchWord(context.TODO(), sserver1.SearchWordArg{TlfID: dirInfo.tlfID, Trapdoors: nil /*TODO*/})
 	if err != nil {
 		return nil, err
 	}
 
 	filenames := make([]string, len(documents))
 	for i, docID := range documents {
-		pathname, err := docIDToPathname(docID, [][32]byte{dirInfo.pathnameKeys[dirInfo.getKeyIndex()]})
+		pathname, err := libsearch.DocIDToPathname(docID, [][32]byte{dirInfo.pathnameKeys[dirInfo.getKeyIndex()]})
 		if err != nil {
 			return nil, err
 		}

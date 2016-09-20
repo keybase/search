@@ -44,6 +44,10 @@ func (c *FakeServerClient) DeleteIndex(_ context.Context, arg sserver1.DeleteInd
 	return nil
 }
 
+func (c *FakeServerClient) GetKeyGens(_ context.Context, _ sserver1.FolderID) ([]int, error) {
+	return []int{0}, nil
+}
+
 func (c *FakeServerClient) SearchWord(_ context.Context, arg sserver1.SearchWordArg) ([]sserver1.DocumentID, error) {
 	c.searchCount++
 	if c.searchCount == 1 {
