@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/keybase/kbfs/libkbfs"
 )
 
 // Tests `GenerateSalts`.  Makes sure that salts are properly generated.
@@ -207,6 +209,32 @@ func TestDocID(t *testing.T) {
 	pathname2, err := DocIDToPathname(docID, [][32]byte{key2})
 	if err == nil && pathname == pathname2 {
 		t.Fatalf("encrypted pathname decrypted with a different key")
+	}
+}
+
+// TestGetKeyGenFromDocID tests the `GetKeyGenFromDocID` function.  Checks that
+// the correct key generation is retrieved from the generated document ID.
+func TestGetKeyGenFromDocID(t *testing.T) {
+	var key [32]byte
+	_, err := rand.Read(key[:])
+	if err != nil {
+		t.Fatalf("error when generating key: %s", err)
+	}
+
+	expectedKeyGen := libkbfs.KeyGen(12345)
+
+	docID, err := PathnameToDocID(expectedKeyGen, "whateverPath", key)
+	if err != nil {
+		t.Fatalf("error when generating document ID: %s", err)
+	}
+
+	actualKeyGen, err := GetKeyGenFromDocID(docID)
+	if err != nil {
+		t.Fatalf("error when extracting key generation: %s", err)
+	}
+
+	if int(expectedKeyGen) != actualKeyGen {
+		t.Fatalf("key generations do not match: expected %d actual %d", expectedKeyGen, actualKeyGen)
 	}
 }
 

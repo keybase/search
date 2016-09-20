@@ -213,6 +213,25 @@ func DocIDToPathname(docID sserver1.DocumentID, keys [][32]byte) (string, error)
 	return depadPathname(pathnameRaw)
 }
 
+// GetKeyGenFromDocID extracts the key generation from the document ID and
+// returns it as an int.  Note that `docID` does not need to be a complete
+// document ID.  A prefix of a document ID would also work, as the key
+// generation is written in the very beginning.
+func GetKeyGenFromDocID(docID sserver1.DocumentID) (int, error) {
+	docIDRaw, err := base64.RawURLEncoding.DecodeString(docID.String())
+	if err != nil {
+		return 0, err
+	}
+
+	var keyGen int64
+	versionBuf := bytes.NewBuffer(docIDRaw[0:docIDVersionLength])
+	if err := binary.Read(versionBuf, binary.LittleEndian, &keyGen); err != nil {
+		return 0, err
+	}
+
+	return int(keyGen), nil
+}
+
 // nextPowerOfTwo returns the next power of two that is strictly greater than n.
 // Stolen from
 // https://github.com/keybase/kbfs/tree/master/libkbfs/crypto_common.go#L357
