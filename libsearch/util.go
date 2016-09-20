@@ -154,6 +154,10 @@ func NormalizeKeyword(keyword string) string {
 	return string(normalizedKeyword)
 }
 
+// PathnameKeyType is the type of key used to encrypt the pathnames into
+// document IDs, and vice versa.
+type PathnameKeyType [32]byte
+
 // The length of the overhead added to padding.
 const padPrefixLength = 4
 const docIDVersionLength = 8
@@ -164,7 +168,7 @@ const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 // NOTE: Instead of using random nonce and padding, we need to use deterministic
 // ones, because we want the encryptions of the same pathname to always yield the
 // same result.
-func PathnameToDocID(keyGen libkbfs.KeyGen, pathname string, key [32]byte) (sserver1.DocumentID, error) {
+func PathnameToDocID(keyGen libkbfs.KeyGen, pathname string, key PathnameKeyType) (sserver1.DocumentID, error) {
 	var nonce [docIDNonceLength]byte
 	cksum := sha256.Sum256([]byte(pathname))
 	copy(nonce[:], cksum[0:docIDNonceLength])
@@ -174,7 +178,9 @@ func PathnameToDocID(keyGen libkbfs.KeyGen, pathname string, key [32]byte) (sser
 		return sserver1.DocumentID(""), err
 	}
 
-	sealedBox := secretbox.Seal(nil, paddedPathname, &nonce, &key)
+	keyBytes := [32]byte(key)
+
+	sealedBox := secretbox.Seal(nil, paddedPathname, &nonce, &keyBytes)
 
 	versionBuf := new(bytes.Buffer)
 
@@ -189,7 +195,7 @@ func PathnameToDocID(keyGen libkbfs.KeyGen, pathname string, key [32]byte) (sser
 
 // DocIDToPathname decrypts a `docID` to get the actual pathname by using the
 // `keys`.
-func DocIDToPathname(docID sserver1.DocumentID, keys [][32]byte) (string, error) {
+func DocIDToPathname(docID sserver1.DocumentID, keys []PathnameKeyType) (string, error) {
 	docIDRaw, err := base64.RawURLEncoding.DecodeString(docID.String())
 	if err != nil {
 		return "", err
@@ -201,11 +207,12 @@ func DocIDToPathname(docID sserver1.DocumentID, keys [][32]byte) (string, error)
 		return "", err
 	}
 	key := keys[keyGen-libkbfs.FirstValidKeyGen]
+	keyBytes := [32]byte(key)
 
 	var nonce [docIDNonceLength]byte
 	copy(nonce[:], docIDRaw[docIDVersionLength:docIDPrefixLength])
 
-	pathnameRaw, ok := secretbox.Open(nil, docIDRaw[docIDPrefixLength:], &nonce, &key)
+	pathnameRaw, ok := secretbox.Open(nil, docIDRaw[docIDPrefixLength:], &nonce, &keyBytes)
 	if !ok {
 		return "", errors.New("invalid document ID")
 	}

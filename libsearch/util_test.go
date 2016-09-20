@@ -197,7 +197,7 @@ func TestDocID(t *testing.T) {
 		t.Fatalf("error when encrypting the pathname: %s", err)
 	}
 
-	pathnameRetrieved, err := DocIDToPathname(docID, [][32]byte{key1})
+	pathnameRetrieved, err := DocIDToPathname(docID, []PathnameKeyType{key1})
 	if err != nil {
 		t.Fatalf("error when decrypting the pathname: %s", err)
 	}
@@ -206,7 +206,7 @@ func TestDocID(t *testing.T) {
 		t.Fatalf("encrypting and then decrypting does not yield the original pathname")
 	}
 
-	pathname2, err := DocIDToPathname(docID, [][32]byte{key2})
+	pathname2, err := DocIDToPathname(docID, []PathnameKeyType{key2})
 	if err == nil && pathname == pathname2 {
 		t.Fatalf("encrypted pathname decrypted with a different key")
 	}
