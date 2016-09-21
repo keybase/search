@@ -11,6 +11,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"path/filepath"
 	"unicode"
 
 	"github.com/keybase/kbfs/libkbfs"
@@ -125,7 +126,7 @@ func readInt(input []byte) (int, error) {
 // WriteFileAtomic writes `content` to a file with `pathname`.  First writes to
 // a temporary file and then performs a rename so that the write is atomic.
 func WriteFileAtomic(pathname string, content []byte) error {
-	tmpFile, err := ioutil.TempFile("", "tmpFile")
+	tmpFile, err := ioutil.TempFile(filepath.Dir(pathname), "tmpFile")
 	if err != nil {
 		return err
 	}
