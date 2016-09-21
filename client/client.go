@@ -24,7 +24,9 @@ import (
 // DirectoryInfo holds necessary information for a KBFS-mounted directory.
 type DirectoryInfo struct {
 	absDir       string                          // The absolute path of the directory.
+	lenMS        int                             // The length of the master secret of the directory.
 	tlfID        sserver1.FolderID               // The TLF ID of the directory.
+	tlfInfo      sserver1.TlfInfo                // The TLF information of the directory.
 	keyGenLock   sync.RWMutex                    // The RWMutex to protect the `keyGen`, `indexer` and `pathnameKeys` variables`.
 	keyGen       libkbfs.KeyGen                  // The lastest key generation of this directory.
 	indexers     []*libsearch.SecureIndexBuilder // The indexer for the directory.
@@ -184,7 +186,9 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 
 		directoryInfos[absDir] = &DirectoryInfo{
 			absDir:       absDir,
+			lenMS:        lenMS,
 			tlfID:        tlfID,
+			tlfInfo:      tlfInfo,
 			keyGen:       keyGen,
 			indexers:     indexers,
 			pathnameKeys: pathnameKeys,
@@ -195,6 +199,8 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 		searchCli:      searchCli,
 		directoryInfos: directoryInfos,
 	}
+
+	go cli.periodicKeyGenCheck()
 
 	return cli, nil
 }
@@ -334,7 +340,7 @@ func (c *Client) SearchWord(directory, word string) ([]string, error) {
 		if keyGen == int(libkbfs.PublicKeyGen) {
 			keyGen = libkbfs.FirstValidKeyGen
 		}
-		if keyGen < 0 || keyGen >= dirInfo.getKeyIndex() {
+		if keyGen < 0 || keyGen-libkbfs.FirstValidKeyGen > dirInfo.getKeyIndex() {
 			continue
 		}
 		indexer := dirInfo.getIndexer(keyGen - libkbfs.FirstValidKeyGen)
@@ -380,4 +386,41 @@ func (c *Client) SearchWordStrict(directory, word string) ([]string, error) {
 	sort.Strings(filenames)
 
 	return filenames, nil
+}
+
+// updateKeys fetches the new master secrets from `currKeyGen` to `newKeyGen`.
+func (c *Client) updateKeys(dirInfo *DirectoryInfo, newKeyGen, currKeyGen libkbfs.KeyGen) {
+	dirInfo.keyGenLock.Lock()
+	defer dirInfo.keyGenLock.Unlock()
+	for keyGen := currKeyGen + 1; keyGen <= newKeyGen; keyGen++ {
+		masterSecret, err := fetchMasterSecret(dirInfo.absDir, keyGen, dirInfo.lenMS)
+		if err != nil {
+			return
+		}
+		dirInfo.indexers = append(dirInfo.indexers, libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, dirInfo.tlfInfo.Salts, uint64(dirInfo.tlfInfo.Size)))
+		var pathnameKey [32]byte
+		copy(pathnameKey[:], masterSecret[0:32])
+		dirInfo.pathnameKeys = append(dirInfo.pathnameKeys, pathnameKey)
+		dirInfo.keyGen = keyGen
+	}
+}
+
+// periodicKeyGenCheck checks every hour and updates the master secrets if a
+// rekey has occurred.
+func (c *Client) periodicKeyGenCheck() {
+	for {
+		time.Sleep(time.Hour)
+		for _, dirInfo := range c.directoryInfos {
+			_, newKeyGen, err := getTlfIDAndKeyGen(dirInfo.absDir)
+			if err != nil {
+				continue
+			}
+			dirInfo.keyGenLock.RLock()
+			currKeyGen := dirInfo.keyGen
+			dirInfo.keyGenLock.RUnlock()
+			if newKeyGen > currKeyGen {
+				c.updateKeys(dirInfo, newKeyGen, currKeyGen)
+			}
+		}
+	}
 }
