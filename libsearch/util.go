@@ -171,7 +171,7 @@ const docIDPrefixLength = docIDVersionLength + docIDNonceLength
 // same result.
 func PathnameToDocID(keyGen libkbfs.KeyGen, pathname string, key PathnameKeyType) (sserver1.DocumentID, error) {
 	var nonce [docIDNonceLength]byte
-	cksum := sha256.Sum256([]byte(pathname))
+	cksum := sha256.Sum256([]byte("kbfs_search_pathname_nonce" + pathname))
 	copy(nonce[:], cksum[0:docIDNonceLength])
 
 	paddedPathname, err := padPathname(pathname)
