@@ -95,16 +95,21 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 	return nil, false
 }
 
-// getKeyIndex is the goroutine-safe helper function that calculates the index of
-// the key to use for building the index or trapdoor word.
-func (d *DirectoryInfo) getKeyIndex() int {
+// getNormalizedKeyIndex returns the zero based index for a key generation.
+func getNormalizedKeyIndex(keyGen libkbfs.KeyGen) int {
+	return int(keyGen - libkbfs.FirstValidKeyGen)
+}
+
+// getLatestKeyIndex is the goroutine-safe helper function that calculates the
+// index of the key to use for building the index or trapdoor word.
+func (d *DirectoryInfo) getLatestKeyIndex() int {
 	d.keyGenLock.RLock()
 	defer d.keyGenLock.RUnlock()
 	keyGen := d.keyGen
 	if keyGen == libkbfs.PublicKeyGen {
 		keyGen = libkbfs.FirstValidKeyGen
 	}
-	return int(keyGen - libkbfs.FirstValidKeyGen)
+	return int(getNormalizedKeyIndex(keyGen))
 }
 
 // getIndexer is the goroutine-safe getter for a specific indexer with `index`.
@@ -177,8 +182,8 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 				if err != nil {
 					return nil, err
 				}
-				indexers[i-libkbfs.FirstValidKeyGen] = libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, tlfInfo.Salts, uint64(tlfInfo.Size))
-				copy(pathnameKeys[i-libkbfs.FirstValidKeyGen][:], masterSecret[0:32])
+				indexers[getNormalizedKeyIndex(i)] = libsearch.CreateSecureIndexBuilder(sha256.New, masterSecret, tlfInfo.Salts, uint64(tlfInfo.Size))
+				copy(pathnameKeys[getNormalizedKeyIndex(i)][:], masterSecret[0:32])
 			}
 		} else {
 			return nil, errors.New("invalid key generation")
@@ -235,7 +240,7 @@ func (c *Client) AddFile(directory, pathname string) error {
 		return err
 	}
 
-	keyIndex := dirInfo.getKeyIndex()
+	keyIndex := dirInfo.getLatestKeyIndex()
 
 	docID, err := libsearch.PathnameToDocID(dirInfo.keyGen, relPath, dirInfo.getPathnameKey(keyIndex))
 	if err != nil {
@@ -284,7 +289,7 @@ func (c *Client) RenameFile(directory string, orig, curr string) error {
 		return err
 	}
 
-	keyIndex := dirInfo.getKeyIndex()
+	keyIndex := dirInfo.getLatestKeyIndex()
 
 	origDocID, err := libsearch.PathnameToDocID(dirInfo.keyGen, relOrig, dirInfo.getPathnameKey(keyIndex))
 	if err != nil {
@@ -312,7 +317,7 @@ func (c *Client) DeleteFile(directory string, pathname string) error {
 		return err
 	}
 
-	docID, err := libsearch.PathnameToDocID(dirInfo.keyGen, relPath, dirInfo.getPathnameKey(dirInfo.getKeyIndex()))
+	docID, err := libsearch.PathnameToDocID(dirInfo.keyGen, relPath, dirInfo.getPathnameKey(dirInfo.getLatestKeyIndex()))
 	if err != nil {
 		return err
 	}
@@ -340,11 +345,11 @@ func (c *Client) SearchWord(directory, word string) ([]string, error) {
 		if keyGen == int(libkbfs.PublicKeyGen) {
 			keyGen = libkbfs.FirstValidKeyGen
 		}
-		if keyGen < 0 || keyGen-libkbfs.FirstValidKeyGen > dirInfo.getKeyIndex() {
+		if keyGen < 0 || getNormalizedKeyIndex(libkbfs.KeyGen(keyGen)) > dirInfo.getLatestKeyIndex() {
 			continue
 		}
-		indexer := dirInfo.getIndexer(keyGen - libkbfs.FirstValidKeyGen)
-		trapdoorMap[strconv.Itoa(origKeyGen)] = sserver1.Trapdoor{Codeword: indexer.ComputeTrapdoors(word), KeyGen: origKeyGen}
+		indexer := dirInfo.getIndexer(getNormalizedKeyIndex(libkbfs.KeyGen(keyGen)))
+		trapdoorMap[strconv.Itoa(origKeyGen)] = sserver1.Trapdoor{Codeword: indexer.ComputeTrapdoors(word)}
 	}
 
 	documents, err := c.searchCli.SearchWord(context.TODO(), sserver1.SearchWordArg{TlfID: dirInfo.tlfID, Trapdoors: trapdoorMap})
