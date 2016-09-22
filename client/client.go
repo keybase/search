@@ -29,8 +29,8 @@ type DirectoryInfo struct {
 	tlfInfo      sserver1.TlfInfo                // The TLF information of the directory.
 	keyGenLock   sync.RWMutex                    // The RWMutex to protect the `keyGen`, `indexer` and `pathnameKeys` variables`.
 	keyGen       libkbfs.KeyGen                  // The lastest key generation of this directory.
-	indexers     []*libsearch.SecureIndexBuilder // The indexer for the directory.
-	pathnameKeys []libsearch.PathnameKeyType     // The key to encrypt and decrypt the pathname to/from document IDs.
+	indexers     []*libsearch.SecureIndexBuilder // The indexers for the directory.
+	pathnameKeys []libsearch.PathnameKeyType     // The keys to encrypt and decrypt the pathname to/from document IDs.
 }
 
 // Client contains all the necessary information for a KBFS Search Client.
@@ -95,7 +95,7 @@ func logTags(ctx context.Context) (map[interface{}]string, bool) {
 	return nil, false
 }
 
-// getKeyIndex is the thread-safe helper function that calculates the index of
+// getKeyIndex is the goroutine-safe helper function that calculates the index of
 // the key to use for building the index or trapdoor word.
 func (d *DirectoryInfo) getKeyIndex() int {
 	d.keyGenLock.RLock()
@@ -107,14 +107,14 @@ func (d *DirectoryInfo) getKeyIndex() int {
 	return int(keyGen - libkbfs.FirstValidKeyGen)
 }
 
-// getIndexer is the thread-safe getter for a specific indexer with `index`.
+// getIndexer is the goroutine-safe getter for a specific indexer with `index`.
 func (d *DirectoryInfo) getIndexer(index int) *libsearch.SecureIndexBuilder {
 	d.keyGenLock.RLock()
 	defer d.keyGenLock.RUnlock()
 	return d.indexers[index]
 }
 
-// getPathnameKey is the thread-safe getter for a specific pathname key with
+// getPathnameKey is the goroutine-safe getter for a specific pathname key with
 // `index`.
 func (d *DirectoryInfo) getPathnameKey(index int) libsearch.PathnameKeyType {
 	d.keyGenLock.RLock()
