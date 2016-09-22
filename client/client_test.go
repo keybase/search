@@ -44,6 +44,10 @@ func (c *FakeServerClient) DeleteIndex(_ context.Context, arg sserver1.DeleteInd
 	return nil
 }
 
+func (c *FakeServerClient) GetKeyGens(_ context.Context, _ sserver1.FolderID) ([]int, error) {
+	return []int{1}, nil
+}
+
 func (c *FakeServerClient) SearchWord(_ context.Context, arg sserver1.SearchWordArg) ([]sserver1.DocumentID, error) {
 	c.searchCount++
 	if c.searchCount == 1 {
@@ -62,15 +66,20 @@ func (c *FakeServerClient) RegisterTlfIfNotExists(_ context.Context, _ sserver1.
 
 // startTestClient creates an instance of a test client and returns a pointer to
 // the instance, as well as the name of the client's temporary directory.  Need
-// to later manually clean up the directory.
-func startTestClient(t *testing.T) (*Client, string) {
-	cliDir, err := ioutil.TempDir("", "TestClient")
-	if err != nil {
-		t.Fatalf("error when creating the test client directory: %s", err)
+// to later manually clean up the directory.  If `dir` is set, initializes the
+// client at `dir` instead of creating a temporary directory
+func startTestClient(t *testing.T, cliDir string) (*Client, string) {
+	var err error
+	if cliDir == "" {
+		cliDir, err = ioutil.TempDir("", "TestClient")
+		if err != nil {
+			t.Fatalf("error when creating the test client directory: %s", err)
+		}
 	}
 
 	var status libkbfs.FolderBranchStatus
 	status.FolderID = "aRandomTLFID"
+	status.LatestKeyGeneration = 1
 	bytes, err := json.MarshalIndent(status, "", "  ")
 	if err != nil {
 		t.Fatalf("error when writing the TLF status: %s", err)
@@ -80,10 +89,9 @@ func startTestClient(t *testing.T) (*Client, string) {
 		t.Fatalf("error when writing the TLF status: %s", err)
 	}
 
-	masterSecrets := [][]byte{[]byte("This is a simple test string")}
 	searchCli := &FakeServerClient{docIDs: make([]sserver1.DocumentID, 0, 5)}
 
-	cli, err := createClientWithClient(context.Background(), searchCli, masterSecrets, []string{cliDir}, 8, 0.000001, 1000)
+	cli, err := createClientWithClient(context.Background(), searchCli, []string{cliDir}, 64, 8, 0.000001, 1000)
 	if err != nil {
 		t.Fatalf("Error when creating the client: %s", err)
 	}
@@ -95,15 +103,14 @@ func startTestClient(t *testing.T) (*Client, string) {
 // be successfully created and that two clients have the same `indexer` and
 // `pathnameKey` if created with the same master secret.
 func TestCreateClient(t *testing.T) {
-	client1, dir1 := startTestClient(t)
-	defer os.Remove(dir1)
-	client2, dir2 := startTestClient(t)
-	defer os.Remove(dir2)
+	client1, dir := startTestClient(t, "")
+	defer os.Remove(dir)
+	client2, _ := startTestClient(t, dir)
 
-	if !reflect.DeepEqual(client1.directoryInfos[dir1].indexer.ComputeTrapdoors("test"), client2.directoryInfos[dir2].indexer.ComputeTrapdoors("test")) {
+	if !reflect.DeepEqual(client1.directoryInfos[dir].indexers[0].ComputeTrapdoors("test"), client2.directoryInfos[dir].indexers[0].ComputeTrapdoors("test")) {
 		t.Fatalf("clients with different indexer created with the same master secret")
 	}
-	if client1.directoryInfos[dir1].pathnameKey != client2.directoryInfos[dir2].pathnameKey {
+	if client1.directoryInfos[dir].pathnameKeys[0] != client2.directoryInfos[dir].pathnameKeys[0] {
 		t.Fatalf("clients with different pathnameKey created with the same master secret")
 	}
 }
@@ -112,7 +119,7 @@ func TestCreateClient(t *testing.T) {
 // written by the server, and that errors are properly returned when the file is
 // not valid.
 func TestAddFile(t *testing.T) {
-	client, dir := startTestClient(t)
+	client, dir := startTestClient(t, "")
 	defer os.RemoveAll(dir)
 
 	content := "This is a random test string, it is quite long, or not really"
@@ -142,7 +149,7 @@ func TestAddFile(t *testing.T) {
 // TestRenameFile tests the `RenameFile` function.  Checks the indexes are
 // properly renamed and errors returned when necessary.
 func TestRenameFile(t *testing.T) {
-	client, dir := startTestClient(t)
+	client, dir := startTestClient(t, "")
 	defer os.RemoveAll(dir)
 
 	content := "a random content"
@@ -168,7 +175,7 @@ func TestRenameFile(t *testing.T) {
 // TestDeleteFile tests the `DeleteFile` function.  Checks the indexes are
 // properly deleted and errors returned when necessary.
 func TestDeleteFile(t *testing.T) {
-	client, dir := startTestClient(t)
+	client, dir := startTestClient(t, "")
 	defer os.RemoveAll(dir)
 
 	content := "a random content"
@@ -193,7 +200,7 @@ func TestDeleteFile(t *testing.T) {
 // testSearchWordHelper tests the provided 'searchFunc' function.  Checks that
 // the correct set of filenames are returned.
 func testSearchWordHelper(t *testing.T, searchFunc func(*Client, string, string) ([]string, error)) {
-	client, dir := startTestClient(t)
+	client, dir := startTestClient(t, "")
 	defer os.RemoveAll(dir)
 
 	contents := []string{

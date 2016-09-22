@@ -1,7 +1,7 @@
 package client
 
 import (
-	"crypto/rand"
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -10,80 +10,6 @@ import (
 
 	"github.com/keybase/kbfs/libkbfs"
 )
-
-// TestDocID tests the `pathnameToDocID` and the `docIDToPathname` functions.
-// Checks that the orginal pathname is retrieved after encrypting and
-// decrypting, and that decrypting with a different key yields an error.
-func TestDocID(t *testing.T) {
-	var key1, key2 [32]byte
-	_, err := rand.Read(key1[:])
-	if err != nil {
-		t.Fatalf("error when generating key: %s", err)
-	}
-	_, err = rand.Read(key2[:])
-	if err != nil {
-		t.Fatalf("error when generating key: %s", err)
-	}
-
-	pathname := "path/to/a/test/file"
-
-	docID, err := pathnameToDocID(pathname, key1)
-	if err != nil {
-		t.Fatalf("error when encrypting the pathname: %s", err)
-	}
-
-	pathnameRetrieved, err := docIDToPathname(docID, key1)
-	if err != nil {
-		t.Fatalf("error when decrypting the pathname: %s", err)
-	}
-
-	if pathname != pathnameRetrieved {
-		t.Fatalf("encrypting and then decrypting does not yield the original pathname")
-	}
-
-	pathname2, err := docIDToPathname(docID, key2)
-	if err == nil && pathname == pathname2 {
-		t.Fatalf("encrypted pathname decrypted with a different key")
-	}
-}
-
-// testNextPowerOfTwoHelper checks that `nextPowerOfTwo(n) == expected`.
-func testNextPowerOfTwoHelper(t *testing.T, n uint32, expected uint32) {
-	actual := nextPowerOfTwo(n)
-	if actual != expected {
-		t.Fatalf("incorrect result of nextPowerOfTwo(%d): expected %d actual %d", n, expected, actual)
-	}
-}
-
-// TestNextPowerOfTwo tests the `nextPowerOfTwo` function.  Checks that all the
-// results are as expected.
-func TestNextPowerOfTwo(t *testing.T) {
-	testNextPowerOfTwoHelper(t, 5, 8)
-	testNextPowerOfTwoHelper(t, 4, 8)
-	testNextPowerOfTwoHelper(t, 1, 2)
-	testNextPowerOfTwoHelper(t, 7, 8)
-	testNextPowerOfTwoHelper(t, 17, 32)
-}
-
-// TestPadding tests the `padPathname` and the `depadPathname` functions.
-// Checks that the same pathname is retrieved after padding and depadding.
-func TestPadding(t *testing.T) {
-	pathname := "simply/a/random/path/without/padding"
-
-	paddedPathname, err := padPathname(pathname)
-	if err != nil {
-		t.Fatalf("error when padding the pathname: %s", err)
-	}
-
-	depaddedPathname, err := depadPathname(paddedPathname)
-	if err != nil {
-		t.Fatalf("error when depadding the pathname: %s", err)
-	}
-
-	if pathname != depaddedPathname {
-		t.Fatalf("incorrect pathname after padding and depadding")
-	}
-}
 
 // testRelPathStrictHelper checks that the call to `relPathStrict` with
 // `basepath` and `targpath` yields the `expected` result and that the error
@@ -115,10 +41,11 @@ func TestRelPathStrict(t *testing.T) {
 	testRelPathStrictHelper(t, "same", "same", "", true)
 }
 
-// TestGetTlfID tests the `getTlfID` function.  Checks that the correct TLF ID
-// is retrieved.
-func TestGetTlfID(t *testing.T) {
+// TestGetTlfIDAndKeyGen tests the `getTlfIDAndKeyGen` function.  Checks that
+// the correct TLF ID and latest key generation are retrieved.
+func TestGetTlfIDAndKeyGen(t *testing.T) {
 	expectedTlfID := "randomrandomfolderID"
+	expectedKeyGen := libkbfs.KeyGen(42)
 
 	tempDir, err := ioutil.TempDir("", "TestTlfID")
 	if err != nil {
@@ -128,6 +55,7 @@ func TestGetTlfID(t *testing.T) {
 
 	var status libkbfs.FolderBranchStatus
 	status.FolderID = expectedTlfID
+	status.LatestKeyGeneration = expectedKeyGen
 	bytes, err := json.MarshalIndent(status, "", "  ")
 	if err != nil {
 		t.Fatalf("error when writing the TLF status: %s", err)
@@ -137,11 +65,58 @@ func TestGetTlfID(t *testing.T) {
 		t.Fatalf("error when writing the TLF status: %s", err)
 	}
 
-	actualTlfID, err := getTlfID(tempDir)
+	actualTlfID, actualKeyGen, err := getTlfIDAndKeyGen(tempDir)
 	if err != nil {
 		t.Fatalf("error when reading the TLF ID: %s", err)
 	}
 	if actualTlfID.String() != expectedTlfID {
 		t.Fatalf("unmatching TLF IDs: expected \"%s\" actual \"%s\"", expectedTlfID, actualTlfID)
+	}
+	if actualKeyGen != expectedKeyGen {
+		t.Fatalf("unmatching key generations: expected \"%d\" actual \"%d\"", expectedKeyGen, actualKeyGen)
+	}
+}
+
+// TestFetchMasterSecret tests the `fetchMasterSecret` function.  Checks that
+// the master secrets are correctly generated and fetched, and that errors are
+// properly reported.
+func TestFetchMasterSecret(t *testing.T) {
+	dir, err := ioutil.TempDir("", "fetchMS")
+	if err != nil {
+		t.Fatalf("error when creating test directory: %s", err)
+	}
+	defer os.RemoveAll(dir)
+
+	ms1, err := fetchMasterSecret(dir, 1, 256)
+	if err != nil {
+		t.Fatalf("error when generating master secret: %s", err)
+	}
+	ms2, err := fetchMasterSecret(dir, 2, 128)
+	if err != nil {
+		t.Fatalf("error when generating master secret: %s", err)
+	}
+	if bytes.Equal(ms1, ms2) {
+		t.Fatalf("master secrets not randomly generated")
+	}
+
+	fetchedMs1, err := fetchMasterSecret(dir, 1, 256)
+	if err != nil {
+		t.Fatalf("error when fetching master secret: %s", err)
+	}
+	if !bytes.Equal(ms1, fetchedMs1) {
+		t.Fatalf("master secret changed after fetching")
+	}
+
+	fetchedMs2, err := fetchMasterSecret(dir, 2, 128)
+	if err != nil {
+		t.Fatalf("error when fetching master secret: %s", err)
+	}
+	if !bytes.Equal(ms2, fetchedMs2) {
+		t.Fatalf("master secret changed after fetching")
+	}
+
+	_, err = fetchMasterSecret(dir, 1, 128)
+	if err == nil || err.Error() != "Invalid master secret length" {
+		t.Fatalf("error not reported when master secret has unmatching length")
 	}
 }

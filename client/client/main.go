@@ -2,8 +2,6 @@ package main
 
 import (
 	"bufio"
-	"crypto/rand"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -81,45 +79,6 @@ func periodicAdd(cli *client.Client, clientDirs []string) {
 	}
 }
 
-// fetchMasterSecrets fetches the master secrets from the client directories.  If
-// the master secret is not present, a new one is generated and written to the
-// directory.  An error is returned if there is an issue accessing the master
-// secret or the master secret is of the wrong length.
-func fetchMasterSecrets(clientDirs []string) ([][]byte, error) {
-	masterSecrets := make([][]byte, len(clientDirs))
-
-	for i, clientDir := range clientDirs {
-
-		f, err := os.OpenFile(filepath.Join(clientDir, ".search_kbfs_secret"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
-
-		if err == nil {
-			defer f.Close()
-			// Generate a random master secret and write it to file
-			masterSecrets[i] = make([]byte, *lenMS)
-			if _, err := rand.Read(masterSecrets[i]); err != nil {
-				return nil, err
-			}
-
-			_, err = f.Write(masterSecrets[i])
-			if err != nil {
-				return nil, err
-			}
-		} else if os.IsExist(err) {
-			// Read the master secret from file
-			masterSecrets[i], err = ioutil.ReadFile(filepath.Join(clientDir, ".search_kbfs_secret"))
-			if err != nil {
-				return nil, err
-			}
-			if len(masterSecrets[i]) != *lenMS {
-				return nil, errors.New("Invalid master secret length")
-			}
-		} else {
-			return nil, err
-		}
-	}
-	return masterSecrets, nil
-}
-
 // performSearchWord searches for the word `keyword` on `cli`, and prints out
 // the results.
 // TODO: Parallelize the search on different TLFs for performance optimization.
@@ -149,15 +108,8 @@ func main() {
 
 	clientDirs := strings.Split(*clientDirectories, ";")
 
-	// Fetch the master secret from the client directory
-	masterSecrets, err := fetchMasterSecrets(clientDirs)
-	if err != nil {
-		fmt.Printf("Cannot fetch the master secret: %s\n", err)
-		os.Exit(1)
-	}
-
 	// Initiate the search client
-	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, masterSecrets, clientDirs, *lenSalt, *fpRate, *numUniqWords, *verbose)
+	cli, err := client.CreateClient(context.TODO(), *ipAddr, *port, clientDirs, *lenMS, *lenSalt, *fpRate, *numUniqWords, *verbose)
 	if err != nil {
 		fmt.Printf("Cannot initialize the client: %s\n", err)
 		os.Exit(1)
