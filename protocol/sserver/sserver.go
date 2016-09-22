@@ -17,7 +17,6 @@ type TlfInfo struct {
 
 type Trapdoor struct {
 	Codeword [][]byte `codec:"codeword" json:"codeword"`
-	KeyGen   int      `codec:"keyGen" json:"keyGen"`
 }
 
 type WriteIndexArg struct {
