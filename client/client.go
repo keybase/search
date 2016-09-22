@@ -205,6 +205,7 @@ func createClientWithClient(ctx context.Context, searchCli sserver1.SearchServer
 		directoryInfos: directoryInfos,
 	}
 
+	// TODO: pass the context along
 	go cli.periodicKeyGenCheck()
 
 	return cli, nil
@@ -334,6 +335,8 @@ func (c *Client) SearchWord(directory, word string) ([]string, error) {
 		return nil, err
 	}
 
+	// TODO: cache the key generations and update when the server notifies the
+	// client of new key generations
 	keyGens, err := c.searchCli.GetKeyGens(context.TODO(), dirInfo.tlfID)
 	if err != nil {
 		return nil, err
