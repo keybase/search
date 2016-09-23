@@ -1,3 +1,7 @@
+// Copyright 2016 Keybase Inc. All rights reserved.
+// Use of this source code is governed by a BSD
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -17,7 +21,7 @@ import (
 var lenSalt = flag.Int("len_salt", 8, "the length of the salts used to generate the PRFs")
 var fpRate = flag.Float64("fp_rate", 0.000001, "the desired false positive rate for searchable encryption")
 var numUniqWords = flag.Uint64("num_words", uint64(100000), "the expected number of unique words in all the documents within one TLF")
-var clientDirectories = flag.String("client_dirs", "/keybase/private/jiaxin,songgao;/keybase/private/jiaxin,strib", "the keybase directories for the client where the files should be indexed, separated by ';'")
+var clientDirectories = flag.String("client_dirs", "", "the keybase directories for the client where the files should be indexed, separated by ';'")
 var port = flag.Int("port", 8022, "the port that the search server is listening on")
 var ipAddr = flag.String("ip_addr", "127.0.0.1", "the IP address that the search server is listening on")
 var lenMS = flag.Int("len_ms", 64, "the length of the master secret")
@@ -105,6 +109,11 @@ func performSearchWord(cli *client.Client, clientDirs []string, keyword string) 
 
 func main() {
 	flag.Parse()
+
+	if *clientDirectories == "" {
+		fmt.Printf("Please provide at least one client directory.\n")
+		os.Exit(1)
+	}
 
 	clientDirs := strings.Split(*clientDirectories, ";")
 
