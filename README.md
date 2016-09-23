@@ -1,7 +1,8 @@
 # Keybase Filesystem (KBFS) Keyword Search
 
 This repository contains a preliminary implementation of the client-side code
-for the Keybase Filesystem (KBFS) Keyword Search.  See the wiki for a brief
+for the Keybase Filesystem (KBFS) Keyword Search.  See the
+[wiki](https://github.com/keybase/search/wiki) for a brief
 introduction and overview.
 
 All code is written in the [Go Language](https://golang.org), and relies
