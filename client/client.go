@@ -350,7 +350,7 @@ func (c *Client) SearchWord(directory, word string) ([]string, error) {
 	for _, keyGen := range keyGens {
 		origKeyGen := keyGen
 		if keyGen == int(libkbfs.PublicKeyGen) {
-			keyGen = libkbfs.FirstValidKeyGen
+			keyGen = int(libkbfs.FirstValidKeyGen)
 		}
 		if keyGen < 0 || getNormalizedKeyIndex(libkbfs.KeyGen(keyGen)) > dirInfo.getLatestKeyIndex() {
 			continue

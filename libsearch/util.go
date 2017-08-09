@@ -211,7 +211,7 @@ func DocIDToPathname(docID sserver1.DocumentID, keys []PathnameKeyType) (string,
 	if err := binary.Read(versionBuf, binary.LittleEndian, &keyGen); err != nil {
 		return "", err
 	}
-	key := keys[keyGen-libkbfs.FirstValidKeyGen]
+	key := keys[keyGen-int64(libkbfs.FirstValidKeyGen)]
 	keyBytes := [32]byte(key)
 
 	var nonce [docIDNonceLength]byte
